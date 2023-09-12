@@ -218,16 +218,38 @@ merged_activity$HourDecimal<-paste((substr(
   sep="") #Paste them to the hours and make a new variable 
 merged_activity$HourDecimal<-as.numeric(merged_activity$HourDecimal)
 
-####!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!###
+####!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!### UNDER CONSTRUCTION, BE AWARE!
 #CAMBIAR LOS VALORES DEL DIA Y LA NOCHE!!!!!!!!
- merged_activity$DayNight<-ifelse(merged_activity$HourDecimal > 0 & merged_activity$HourDecimal < 6,"Night",
-                     ifelse(merged_activity$HourDecimal > 18, "Night",
-                            ifelse(merged_activity$HourDecimal > 6 & merged_activity$HourDecimal < 18,"Day",NA)))
+
+# week sunrise_decimal	sunset_decimal
+# 1    5,567	          20,183
+# 2    5,233	          20,467
+# 3    4,850	          20,817
+# 4    4,583	          21,083
+# 5    4,317	          21,350
+
+
+merged_activity <- merged_activity %>% #Assign the day and night values to each of the weeks (including the "day - night" schedule of the 24h setup)
+  mutate(
+    DayNight = case_when(
+      Week == "1" ~ ifelse(HourDecimal > 0 & HourDecimal < 5.567, "Night",
+                           ifelse(HourDecimal > 20.186, "Night", "Day")),
+      Week == "2" ~ ifelse(HourDecimal > 0 & HourDecimal < 5.233, "Night",
+                           ifelse(HourDecimal > 20.467, "Night", "Day")),
+      Week == "3" ~ ifelse(HourDecimal > 0 & HourDecimal < 4.850, "Night",
+                           ifelse(HourDecimal > 20.817, "Night", "Day")),
+      Week == "4" ~ ifelse(HourDecimal > 0 & HourDecimal < 4.583, "Night",
+                           ifelse(HourDecimal > 21.083, "Night", "Day")),
+      Week == "5" ~ ifelse(HourDecimal > 0 & HourDecimal < 4.317, "Night",
+                           ifelse(HourDecimal > 21.350, "Night", "Day")),
+      TRUE ~ NA  # Default value
+    ))
+
 
 #Hablar con nicholas de este modelo
-intentomodelo<- lmer  (Activity ~ sin(2*pi*HourDecimal/24) * experiment + cos(2*pi*HourDecimal/24) * experiment + (1|Ring),
+intentomodelo<- lmer  (Activity ~ sin(2*pi*HourDecimal/24) * experiment * DayNight + cos(2*pi*HourDecimal/24) * experiment * DayNight + (1|Ring),
      data = merged_activity, na.action = 'na.fail')
-
+summary(intentomodelo)
 
 
 
