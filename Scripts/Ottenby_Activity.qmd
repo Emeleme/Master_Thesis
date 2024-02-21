@@ -1619,7 +1619,7 @@ ggplot(data_to_plot_w1, aes(x = time, y = date, fill = !!sym(activity))) +
   ylab("Date") +
   ggtitle(paste("Week ",data_to_plot_w1$Week[1])) +
   scale_fill_gradient(name = activity_alias, 
-                      low = "lightcyan", high = "darkblue", na.value = "#FFFFFF") +
+                      low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF") +
   theme_classic() +
   theme(plot.title = element_text(hjust = 0.5),
         text = element_text(size = 15, color = "black"),
@@ -1627,8 +1627,8 @@ ggplot(data_to_plot_w1, aes(x = time, y = date, fill = !!sym(activity))) +
         panel.background = element_rect(fill = "white"),
         axis.line = element_line(size = 0.5))+
   scale_x_discrete(breaks = c("02:10", "06:10", "10:10", "14:10", "18:10", "22:10"))+
-  geom_vline(xintercept = sunrise_w1, color= "darkorange1", linewidth = 0.8)+
-  geom_vline(xintercept = sunset_w1, color= "darkorange3", linewidth = 0.8)
+  geom_vline(xintercept = sunrise_w1, color= "red2", linewidth = 0.8)+
+  geom_vline(xintercept = sunset_w1, color= "red2", linewidth = 0.8)
 ```
 
 ### Week 2
@@ -1662,7 +1662,7 @@ ggplot(data_to_plot_w2, aes(x = time, y = date, fill = !!sym(activity))) +
   ylab("Date") +
   ggtitle(paste("Week ",data_to_plot_w2$Week[1])) +
   scale_fill_gradient(name = activity_alias,
-                      low = "lightcyan", high = "darkblue", na.value = "#FFFFFF") +
+                      low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF") +
   theme_classic() +
   theme(plot.title = element_text(hjust = 0.5),
         text = element_text(size = 15, color = "black"),
@@ -1670,8 +1670,8 @@ ggplot(data_to_plot_w2, aes(x = time, y = date, fill = !!sym(activity))) +
         panel.background = element_rect(fill = "white"),
         axis.line = element_line(size = 0.5))+
   scale_x_discrete(breaks = c("02:10", "06:10", "10:10", "14:10", "18:10", "22:10"))+
-  geom_vline(xintercept = sunrise_w2, color= "darkorange1", linewidth = 0.8)+
-  geom_vline(xintercept = sunset_w2, color= "darkorange3", linewidth = 0.8)
+  geom_vline(xintercept = sunrise_w2, color= "red2", linewidth = 0.8)+
+  geom_vline(xintercept = sunset_w2, color= "red2", linewidth = 0.8)
 ```
 
 ### Week 3
@@ -1705,7 +1705,7 @@ ggplot(data_to_plot_w3, aes(x = time, y = date, fill = !!sym(activity))) +
   ylab("Date") +
   ggtitle(paste("Week ",data_to_plot_w3$Week[1])) +
   scale_fill_gradient(name = activity_alias, 
-                      low = "lightcyan", high = "darkblue", na.value = "#FFFFFF") +
+                      low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF") +
   theme_classic() +
   theme(plot.title = element_text(hjust = 0.5),
         text = element_text(size = 15, color = "black"),
@@ -1713,8 +1713,8 @@ ggplot(data_to_plot_w3, aes(x = time, y = date, fill = !!sym(activity))) +
         panel.background = element_rect(fill = "white"),
         axis.line = element_line(size = 0.5))+
   scale_x_discrete(breaks = c("02:10", "06:10", "10:10", "14:10", "18:10", "22:10"))+
-  geom_vline(xintercept = sunrise_w3, color= "darkorange1", linewidth = 0.8)+
-  geom_vline(xintercept = sunset_w3, color= "darkorange3", linewidth = 0.8)
+  geom_vline(xintercept = sunrise_w3, color= "red2", linewidth = 0.8)+
+  geom_vline(xintercept = sunset_w3, color= "red2", linewidth = 0.8)
 ```
 
 ### Week 4
@@ -1748,7 +1748,7 @@ ggplot(data_to_plot_w4, aes(x = time, y = date, fill = !!sym(activity))) +
   ylab("Date") +
   ggtitle(paste("Week ",data_to_plot_w4$Week[1])) +
   scale_fill_gradient(name = activity_alias, 
-                      low = "lightcyan", high = "darkblue", na.value = "#FFFFFF") +
+                      low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF") +
   theme_classic() +
   theme(plot.title = element_text(hjust = 0.5),
         text = element_text(size = 15, color = "black"),
@@ -1756,8 +1756,8 @@ ggplot(data_to_plot_w4, aes(x = time, y = date, fill = !!sym(activity))) +
         panel.background = element_rect(fill = "white"),
         axis.line = element_line(size = 0.5))+
   scale_x_discrete(breaks = c("02:10", "06:10", "10:10", "14:10", "18:10", "22:10"))+
-  geom_vline(xintercept = sunrise_w4, color= "darkorange1", linewidth = 0.8)+
-  geom_vline(xintercept = sunset_w4, color= "darkorange3", linewidth = 0.8)
+  geom_vline(xintercept = sunrise_w4, color= "red2", linewidth = 0.8)+
+  geom_vline(xintercept = sunset_w4, color= "red2", linewidth = 0.8)
 
 ```
 
@@ -1792,7 +1792,7 @@ ggplot(data_to_plot_w5, aes(x = time, y = date, fill = !!sym(activity))) +
   ylab("Date") +
   ggtitle(paste("Week ",data_to_plot_w5$Week[1])) +
   scale_fill_gradient(name = activity_alias, 
-                      low = "lightcyan", high = "darkblue", na.value = "#FFFFFF") +
+                      low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF") +
   theme_classic() +
   theme(plot.title = element_text(hjust = 0.5),
         text = element_text(size = 15, color = "black"),
@@ -1800,8 +1800,8 @@ ggplot(data_to_plot_w5, aes(x = time, y = date, fill = !!sym(activity))) +
         panel.background = element_rect(fill = "white"),
         axis.line = element_line(size = 0.5))+
   scale_x_discrete(breaks = c("02:10", "06:10", "10:10", "14:10", "18:10", "22:10"))+
-  geom_vline(xintercept = sunrise_w5, color= "darkorange1", linewidth = 0.8)+
-  geom_vline(xintercept = sunset_w5, color= "darkorange3", linewidth = 0.8)
+  geom_vline(xintercept = sunrise_w5, color= "red2", linewidth = 0.8)+
+  geom_vline(xintercept = sunset_w5, color= "red2", linewidth = 0.8)
 ```
 
 ### Total activity
@@ -1831,7 +1831,7 @@ ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
   ylab("Day") +
   ggtitle(paste("General activity per day")) +
   scale_fill_gradient(name = activity_alias, 
-                      low = "lightcyan", high = "darkblue", na.value = "#FFFFFF") +
+                      low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF") +
   theme_classic() +
   theme(plot.title = element_text(hjust = 0.5),
         text = element_text(size = 15, color = "black"),
@@ -1852,7 +1852,7 @@ ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
   ylab("Date") +
   ggtitle(paste("General activity per day")) +
   scale_fill_gradient(name = activity_alias, 
-                      low = "lightcyan", high = "darkblue", na.value = "#FFFFFF") +
+                      low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF") +
   theme_classic() +
   theme(plot.title = element_text(hjust = 0.5),
         text = element_text(size = 15, color = "black"),
