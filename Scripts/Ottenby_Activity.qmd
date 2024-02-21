@@ -356,8 +356,8 @@ merged_activity$Activity[feedingtime] <- NA #set feeding time activity values to
 Three Willow Warblers does not meet the criteria to be included into the analysis (They fall into the gray zone where northern and southern willow warblers cant be separated). So, I needed to delete them
 
 ```{r Willys-}
-merged_activity <- merged_activity %>% 
-  filter(!Ring %in% c("DK53569"))
+# merged_activity <- merged_activity %>% 
+#   filter(!Ring %in% c("DK53569"))
 ```
 
 ### Mean and total activity

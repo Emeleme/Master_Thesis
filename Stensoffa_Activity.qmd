@@ -553,29 +553,31 @@ stf_activity_alias<-"activity"
 Set the date and time as columns in the data
 
 ```{r actogram_datetime}
-stf_data_actogram_raw <- data_actogram_raw %>%  
-   mutate(date = as_date(datetime),      
-          time = format(datetime, format = "%H:%M", tz = "CET")) #set date and time columns}
+stf_data_actogram_raw <- stf_data_actogram_raw %>%  
+   mutate(date = as_date(DateTime),      
+          time = format(DateTime, format = "%H:%M", tz = "CET")) #set date and time columns}
 ```
 
 And the actogram can be plotted now
 
-```{r plot_w1, fig.width=10, fig.height=10}
-#| warning: false  
-stf_data_actogram_raw$time <- as.character(stf_data_actogram_raw$time)
-
-ggplot(stf_data_actogram_raw, aes(x = time, y = date, fill = !!sym(activity))) + 
-  geom_tile() +   
-  facet_rep_wrap(vars(Ring)) +
+```{r}
+ggplot(stf_data_actogram_raw, aes(x = time, y = date, fill = !!sym(stf_activity)))+
+  geom_tile()+
+  facet_wrap(Setup ~ Ring)+
   xlab("Time") +  
   ylab("Date") +  
   scale_fill_gradient(name = activity_alias, 
-                      low = "lightcyan", high = "darkblue", na.value = "#FFFFFF") +
-  theme_classic() + 
-  theme(plot.title = element_text(hjust = 0.5),     
-        text = element_text(size = 15, color = "black"),    
-        axis.text = element_text(color = "black"),      
-        panel.background = element_rect(fill = "white"),    
-        axis.line = element_line(size = 0.5)) +  
-  scale_x_discrete(breaks = c("02:10", "06:10", "10:10", "14:10", "18:10", "22:10"))
+                      low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF")
+  
+#Seguir con esto después
+sunrise.sunset <- subset(db.facet, Ring == Ring[1])
+    sunrise <- ddply(sunrise.sunset, .(Day), summarise, 
+                     Time = as.POSIXct(paste(substr(Time[1], 1, 10), Sunrise[1])))
+    sunset <- ddply(sunrise.sunset, .(Day), summarise, 
+                    Time = as.POSIXct(paste(substr(Time[1], 1, 10), Sunset[1])))
+    
+    p1 <- p1 +  
+      geom_vline(data=sunrise, aes(xintercept = Time-600), linetype=2) +
+      geom_vline(data=sunset, aes(xintercept = Time+600), linetype=2)
 ```
+
