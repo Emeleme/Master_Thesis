@@ -1,0 +1,740 @@
+---
+title: "Thesis Script"
+author: "Maria Laura Mahecha Escobar"
+format:
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    latex_engine: xelatex
+editor: visual
+---
+
+```{=html}
+<style type="text/css">
+
+body, td {
+   font-size: 14px;
+}
+code.r{
+  font-size: 12px;
+}
+pre {
+  font-size: 10px
+}
+</style>
+```
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=80),tidy=TRUE)
+```
+
+This document contains the codes and results obtained by Maria Laura Mahecha Escobar in her master thesis at Lund university.
+
+The research question we are aiming to answer is: Does the migratory behaviour of birds that breed either polar or subpolar varies with changes in daylenght? We are considering migratory behavior as three different factors: night activity, orientation and fueling.
+
+```{r}
+#| output: FALSE
+setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal Ecology 2022-2024/Tesis/Database")
+```
+
+For running this script you need the following packages installed in your workspace:
+
+```{r libraries, output=FALSE, include=TRUE, warning=FALSE}
+library(usethis) #To use github
+library(knitr) #to use markdown
+library(circular) #to perform circular statistics
+library(ggplot2) #to do beautiful plots
+library(rmarkdown) #to use markdown
+library(quarto) #to use markdown
+library(lmerTest) #to do random effect tests
+library(cowplot)
+library(lme4) #to do random effect tests
+library(dplyr) #managing tables and organizing data
+library(janitor)
+library(tvthemes)
+library(phytools) #managing phylogenetic approaches
+library(bpnreg) #circular regression models
+library(CircStats) #some useful circular functions
+library(RSQLite) #to connect database reades
+library(data.table) #to handle tables
+library(remotes)
+
+```
+
+## Emlen funnel analysis
+
+In this code there are two different codes for handling emlen funnels data. The first one is manually and the second one is useng the package circular.
+
+### Emlen analysis manual
+
+This code aims to conver Susanne's excel sheet into an R code step by step.
+
+To calculate the mean direction, r value and p value for each emlen funnel experiments we need to know if the distribution is unimoda or axial (bimodal). You can notice this in the paper when you count scratches or using mathematical functions. To know if you have an axial distribution your angles need to be doubled and then compare the values from them with an unimodal distribution.
+
+Final vectors that contain the values for the sin and cos for angle 1 and 2 in the sector and that we are going to use from this part of the code are:
+
+@sen24sector_1\
+\@cos24sector_1\
+\@sen24sector_2\
+\@cos24sector_2
+
+```{r "sin and cos from first and second angles", output=FALSE, include=FALSE, warning=FALSE}
+
+rad2deg <- function(rad) {(rad * 180) / (pi)} #Converts radians to degrees. Font:https://stackoverflow.com/questions/32370485/convert-radians-to-degree-degree-to-radians
+deg2rad <- function(deg) {(deg * pi) / (180)} #converts degrees to radians. Font:https://stackoverflow.com/questions/32370485/convert-radians-to-degree-degree-to-radians
+
+####Sin and cos 24 sectors angles####
+sectorAngle_1_deg<- as.vector(c(0,15,30,45,60,75,90,105,120,135,150,165,180,195,210,225,240,255,270,285,300,315,330,345)) #It contains the values of the first angle for each sector. first sector angle is 0, second sector angle is 15 and so on.
+sectorAngle_1<-deg2rad(sectorAngle_1_deg) #Converts angle degrees into radians to calculate sin and cos functions further
+
+sectorAngle_2_deg<- as.vector(c(0,30,60,90,120,150,180,210,240,270,300,330,360,390,420,450,480,510,540,570,600,630,660,690)) #It contains the values of the doubled angle for each sector. first sector doubled angle is 0, second sector doubled angle is 30 and so on.
+sectorAngle_2<-deg2rad(sectorAngle_2_deg) #Converts angle degrees into radians to calculate sin and cos functions further
+
+
+###Sin sector angle 1###
+sen24sector_1<-as.vector(sin(sectorAngle_1)) #It contains the values of the sin for each angle_1 for each vector
+print.default(sen24sector_1, digits = 3) #Prints the result with only 3 digits
+
+###cos sector angle 1###
+cos24sector_1<-as.vector(cos(sectorAngle_1)) #It contains the values of the cos for each angle_1 for each vector
+print.default(cos24sector_1, digits = 3) #Prints the result with only 3 digits
+
+###sin sector angle 2###
+sen24sector_2<-as.vector(sin(sectorAngle_2)) #It contains the values of the sin for each angle_2 for each vector
+print.default(sen24sector_2, digits = 3) #Prints the result with only 3 digits
+
+###cos sector angle 2###
+cos24sector_2<-as.vector(cos(sectorAngle_2)) #It contains the values of the cos for each angle_2 for each vector
+print.default(cos24sector_2, digits = 3) #Prints the result with only 3 digits
+```
+
+In this section we are going to calculate basic trigonometric functions for posterior analysis. From this part we are interested in:
+
+@arctan_angle1\
+\@arctan_angle2\
+x an y values for both angles
+
+```{r "Basic trigonometric calculations for emlen funnels"}
+
+EmlenFunnels_RawData<-read.table("E:\\Users\\mlmah\\OneDrive\\Documentos\\MLME\\Maestria\\Animal Ecology 2022-2024\\Tesis\\Database\\EmlenData_Spring2023.txt", h=TRUE) #upload your data 
+EmlenFunnel<- dplyr::select(EmlenFunnels_RawData, c("Ring","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S15","S16","S17","S18","S19","S20","S21","S22","S23","S24","TotalScratches")) #Make a new table using selected columns. The columns we are going to use are the identity of the bird, all 24 sectors and the total number of scratches in the funnel. MAKE SURE TO CHANGE THE COLUMN NAMES TO MATCH WITH YOUR TABLE
+
+sectors<-as.data.frame(dplyr::select(EmlenFunnels_RawData, c("S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S15","S16","S17","S18","S19","S20","S21","S22","S23","S24")))
+
+##angle 1##
+senSectors_angle1<-mapply("*",as.data.frame(sectors),sen24sector_1) #Multiplies each column of the sectors by the sen for each angle 1
+senData_angle1<-rowSums(senSectors_angle1) #It sums each column and creates a vector with the sen value for the first angle for each bird
+y_angle1<-senData_angle1/EmlenFunnel$TotalScratches #Calculates the y value for angle 1
+
+cosSectors_angle1<-mapply("*",as.data.frame(sectors),cos24sector_1) #Multiplies each column of the sectors by the cos for each angle 1
+cosData_angle1<-rowSums(cosSectors_angle1) #It sums each column and creates a vector with the cos value for the first angle for each bird
+x_angle1<-cosData_angle1/EmlenFunnel$TotalScratches #Calculates the x value for angle 1
+
+tan_angle1<-(y_angle1/x_angle1) #Calculates the tangent for angle 1
+arctan_angle1<-atan2(y_angle1,x_angle1)*(180/pi) #Calculates the arctan for angle 1
+pre_dir_1<-ifelse(arctan_angle1<0, arctan_angle1+360, arctan_angle1) #Calculates the direction given an unimodal distribution
+
+##angle2##
+senSectors_angle2<-mapply("*",as.data.frame(sectors),sen24sector_2) #Multiplies each column of the sectors by the sen for each angle 1
+senData_angle2<-rowSums(senSectors_angle2) #It sums each column and creates a vector with the sen value for the second angle for each bird
+y_angle2<-senData_angle2/EmlenFunnel$TotalScratches #Calculates the y value for angle 2
+
+cosSectors_angle2<-mapply("*",as.data.frame(sectors),cos24sector_2) #Multiplies each column of the sectors by the cos for each angle 1
+cosData_angle2<-rowSums(cosSectors_angle2) #It sums each column and creates a vector with the sen value for the second angle for each bird
+x_angle2<-cosData_angle2/EmlenFunnel$TotalScratches #Calculates the x value for angle 2
+
+tan_angle2<-(y_angle2/x_angle2) #Calculates the tangent for angle 2
+arctan_angle2<-atan2(y_angle2,x_angle2)*(180/pi) #Calculates the arctan for angle 2
+pre_dir_2<-ifelse(arctan_angle2<0, arctan_angle2+360, arctan_angle2) #Calculates the direction given a bimodal distribution
+pre_dir_2a<-pre_dir_2/2 #Calculates the first direction of a bimodal distribution
+pre_dir_2b<-pre_dir_2a+180 #Calculates the second direction of a bimodal distribution
+
+```
+
+In this section we are going to handling with axial data. Axial data returns two different values for direction and we need to choose only one for it. In this case, the way of doing so is selecting the angle that has most of the scratches. You can do this manually and modifying your database or you can use the code below. This code searches for the values in the original database and compares which one is higher. Then writes the obtained direction from it.
+
+```{r "Handling axial data"}
+
+#To know the nearest value and find the direction in axial data
+
+###2a###
+# Create a vector to store the closest positions for direction 2a
+closest_positions_2a <- numeric(length(pre_dir_2a))
+for (i in 1:length(pre_dir_2a)) {# Calculate the distance to each value in sectorAngel_1_deg
+  distances_2a <- abs(pre_dir_2a[i] - sectorAngle_1_deg)# Find the position of the closest value
+  closest_positions_2a[i] <- which.min(distances_2a)
+}
+#print(closest_positions_2a) #prints the position of the closest value for the angle given 
+closest_positions_2a <-as.vector(paste("S", closest_positions_2a, sep="")) #Put an "S" before the value to match the column names in the database HAVE THIS INTO ACCOUNT FOR YOUR OWN DATABASES!!!
+
+###2b###
+# Create a vector to store the closest positions for direction 2b
+closest_positions_2b <- numeric(length(pre_dir_2b))
+for (i in 1:length(pre_dir_2b)) {# Calculate the distance to each value in sectorAngel_1_deg
+  distances_2b <- abs(pre_dir_2b[i] - sectorAngle_1_deg)# Find the position of the closest value
+  closest_positions_2b[i] <- which.min(distances_2b)
+}
+#print(closest_positions_2b) #prints the position of the closest value for the angle given 
+closest_positions_2b<-as.vector(paste("S", closest_positions_2b, sep="")) #Put an "S" before the value to match the column names in the database HAVE THIS INTO ACCOUNT FOR YOUR OWN DATABASES!!!
+
+
+#To extract number of scratches and compare
+  #For direction_2a
+scratches_2a <- vector() #create an empty vector of unknown dimensions
+for (i in seq_along(closest_positions_2a)) { #For a sequence of data in the vector 
+  scratches_2a <- c(scratches_2a, EmlenFunnel[i, closest_positions_2a[i]]) #match the name of the column and 
+}
+#scratches_2a
+
+  #For direction_2b
+scratches_2b <- vector() #create an empty vector of unknown dimensions
+for (i in seq_along(closest_positions_2b)) { #For a sequence of data in the vector 
+  scratches_2b <- c(scratches_2b, EmlenFunnel[i, closest_positions_2b[i]]) #match the name of the column and 
+}
+#scratches_2b
+
+bimodal_dir<-ifelse(scratches_2a<scratches_2b,pre_dir_2b, pre_dir_2a) #If the number of scratches is higher in the direction b than in the direction a you choose the direction b to be the one you choose in an axial distribution
+```
+
+In this section we will calculate the mean lenght of the vectors (r) and the overall direction of the individual (\@directionEmlen)
+
+```{r "Mean direction, r value, ", include=TRUE, warning=FALSE}
+
+r_value_1<-sqrt(((x_angle1)^2)+((y_angle1)^2)) #Calculates the r value for angle 1
+r_value_2<-sqrt(((x_angle2)^2)+((y_angle2)^2)) #calculates the r value for both angles in axial distribution
+rvalue<-ifelse(r_value_1>r_value_2, r_value_1, r_value_2)
+#rvalue
+
+directionEmlen<- ifelse(r_value_1>r_value_2,pre_dir_1, bimodal_dir) #compares r values and chooses the correct distribution accordingly
+directionEmlen<- as.circular(directionEmlen, units='degrees', template='geographics', modulo="2pi")
+
+pvalue_1_uniformity<-(exp(-(EmlenFunnel$TotalScratches)*((r_value_1)^2)))
+pvalue_2_uniformity<-(exp(-(EmlenFunnel$TotalScratches)*((r_value_2)^2)))
+pvalue_uniformity<-ifelse(r_value_1>r_value_2, pvalue_1_uniformity,pvalue_2_uniformity)
+
+
+EmlenFunnels_withDir<-cbind(EmlenFunnels_RawData,directionEmlen,rvalue,pvalue_uniformity)
+#EmlenFunnels_withDir
+
+EmlenDir_Capture<-subset(EmlenFunnels_withDir, Treatment=="capture")
+EmlenDir_Control<-subset(EmlenFunnels_withDir, Treatment=="control")
+EmlenDir_24h<-subset(EmlenFunnels_withDir, Treatment=="treatment")
+
+rtest_capture<- rayleigh.test(EmlenDir_Capture$directionEmlen)
+rtest_control<- rayleigh.test(EmlenDir_Control$directionEmlen)
+rtest_treatment<- rayleigh.test(EmlenDir_24h$directionEmlen)
+
+#circ.plot(directionEmlen, cex=1.5, bin=720, stack=FALSE, shrink=1.3)
+
+plot(EmlenDir_Capture$directionEmlen, cex=1.5, bin=720, stack=FALSE, sep=0.035, shrink=1.3, main = "Capture day")
+arrows.circular(mean.circular(EmlenDir_Capture$directionEmlen), y=rtest_capture$statistic, length=0.1)
+
+plot(EmlenDir_Control$directionEmlen, cex=1.5, bin=720, stack=FALSE, sep=0.035, shrink=1.3, main = "Control day")
+arrows.circular(mean.circular(EmlenDir_Control$directionEmlen), y=rtest_control$statistic, length=0.1)
+
+plot(EmlenDir_24h$directionEmlen, cex=1.5, bin=720, stack=FALSE, sep=0.035, shrink=1.3, main = "24h daylength")
+arrows.circular(mean.circular(EmlenDir_24h$directionEmlen), y=rtest_treatment$statistic, length=0.1)
+
+
+w.capture<-watson.test(as.circular(EmlenDir_Capture$directionEmlen))
+print(paste("The Watson's test p-value for capture day is", w.capture$statistic))
+w.control<-watson.test(EmlenDir_Control$directionEmlen)
+print(paste("The Watson's test p-value for control days is", w.control$statistic))
+w.treatment<-watson.test(EmlenDir_24h$directionEmlen)
+print(paste("The Watson's test p-value for treatment days is", w.treatment$statistic))
+```
+
+In this section we will perform the models we want to test. At the moment bpnme models are not running. I have errors on them. Needs to be solved in the inmediate future.
+
+```{r "statistical models", warning=FALSE}
+EmlenFunnels_withDir$NumericID<-as.factor(EmlenFunnels_withDir$NumericID)
+EmlenFunnels_withDir$Treatment<-as.factor(EmlenFunnels_withDir$Treatment)
+EmlenFunnels_withDir$DayLength<-as.numeric(EmlenFunnels_withDir$DayLength)
+EmlenFunnels_withDir$BreedingDistribution<-as.factor(EmlenFunnels_withDir$BreedingDistribution)
+EmlenFunnels_withDir$Rad_Dir<-as.circular(deg2rad(EmlenFunnels_withDir$directionEmlen), type="radians")
+EmlenFunnels_withDir$DummyTreatment<-ifelse(EmlenFunnels_withDir$Treatment== "control", 0, 1)
+EmlenFunnels_withDir$DummyBreed<-ifelse(EmlenFunnels_withDir$BreedingDistribution== "subpolar", 0, 1)
+EmlenFunnels_withDir<-as.data.frame(EmlenFunnels_withDir)
+
+#to interpret the output https://cran.r-project.org/web/packages/bpnreg/vignettes/FAQ.html 
+
+#pred_orientation_1<-bpnme(Rad_Dir ~ DummyTreatment * DummyBreed + (1|NumericID), EmlenFunnels_withDir, its=100) #This code line is useful if you really need 
+
+# pred_orientation_1<-bpnme(Rad_Dir ~ Treatment * BreedingDistribution + (1|NumericID), EmlenFunnels_withDir, its=100)
+# pred_orientation_2<-bpnme(Rad_Dir ~ DayLength * BreedingDistribution + (1|NumericID), EmlenFunnels_withDir, its=100)
+
+```
+
+### Using 'circular' package
+
+In this section (I need to tidy up the text and the comment son the code), I will perform the same analysis and some other test on the emlen funnel data using 'circular' package.
+
+The code needs some tidy as well
+
+```{r, include=TRUE, warning=FALSE, message = FALSE}
+setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal Ecology 2022-2024/Tesis/Database")
+#read .csv data file and assign it a name
+Emlen_IndData_2<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal Ecology 2022-2024/Tesis/Database/EmlenData_Spring2023.txt", h=T)
+
+#check data
+names(Emlen_IndData_2) #returns names of the columns
+head(Emlen_IndData_2) #returns first 6 rows
+dim(Emlen_IndData_2) #returns dimensions - rows and columns
+str(Emlen_IndData_2) #compilation of the above
+#load libraries
+library(circular)
+library(dplyr)
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(remotes)
+library(bpnreg)
+
+# ANALYSIS FOR INDIVIDUAL BIRDS - UNIMODAL --------------------------------------
+#import my data, update column name and assigning a new row as heading
+setnames(Emlen_IndData_2, old=c("S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S15","S16","S17","S18","S19","S20","S21","S22","S23","S24"), 
+         new = c("0","15","30","45","60","75","90","105","120","135","150","165","180","195","210","225","240","255","270","285","300","315","330","345"), skip_absent=TRUE)
+
+Emlen_IndData_2<-tibble::rowid_to_column(Emlen_IndData_2, "Identificator")
+deg2rad <- function(deg) {(deg * pi) / (180)} #converts degrees to radians.
+rad2deg <- function(rad) {(rad * 180) / (pi)} #converts radians to degrees.
+
+Emlen_IndData_2$Date<-lubridate::dmy(Emlen_IndData_2$Date)
+str(Emlen_IndData_2)
+Emlen_IndData_2 <- Emlen_IndData_2 %>%
+  mutate(Week = case_when(
+    between(Date, as.Date("2023-04-20"), as.Date("2023-04-26")) ~ 1,
+    between(Date, as.Date("2023-04-28"), as.Date("2023-05-04")) ~ 2,
+    between(Date, as.Date("2023-05-08"), as.Date("2023-05-14")) ~ 3,
+    between(Date, as.Date("2023-05-16"), as.Date("2023-05-22")) ~ 4,
+    between(Date, as.Date("2023-05-25"), as.Date("2023-05-31")) ~ 5,
+    TRUE ~ 6 # Defining values for each week with date intervals
+  ))
+
+View(Emlen_IndData_2)
+
+
+datalong_EmlenInd_2<-pivot_longer( #makes it a frequency to rep after
+  Emlen_IndData_2,
+  cols=c("0","15","30","45","60","75","90","105","120","135","150","165","180","195","210","225","240","255","270","285","300","315","330","345"),
+  names_to="sector",
+  values_to="count")
+
+uniqueValues_ID<-unique(datalong_EmlenInd_2$Identificator)
+
+results_df <- data.frame(Identificator = uniqueValues_ID,   #create an empty dataframe to store results
+                         test_statistic = numeric(length(uniqueValues_ID)),
+                         p_value = numeric(length(uniqueValues_ID)),
+                         Mean = numeric(length(uniqueValues_ID)),
+                         rho= numeric(length(uniqueValues_ID)))
+
+# Loop through unique identifiers
+for (i in uniqueValues_ID) {
+  subset_data <- subset(datalong_EmlenInd_2, Identificator == i) #subsets data for each identificator/each entry in the database
+  IndData <- as.data.frame(as.numeric(unlist(subset_data)))
+  IndData <- na.omit(IndData)
+  longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count)) #repeats the degrees the times we counted already
+  longdata <- deg2rad(longdata)  # Convert to radians
+  rayleigh_test <- rayleigh.test(longdata) #performs rayleigh test for each entry in the database
+  r1 <- rho.circular(longdata, na.rm = FALSE)
+  test_statistic <- rayleigh_test$statistic
+  p_value <- rayleigh_test$p.value
+  MeanDir<- mean.circular(longdata)
+  
+  # Convert the mean direction from radians to degrees and correct negative values
+  MeanDir_deg <- rad2deg(MeanDir)  # Convert to degrees
+  if (MeanDir_deg < 0) {
+    MeanDir_deg <- 360 + MeanDir_deg  # Wrap around negative values
+  }
+  
+  # Assign results to the correct rows
+  row_index <- which(results_df$Identificator == i)
+  results_df$rho[row_index] <- r1
+  results_df$test_statistic[row_index] <- test_statistic
+  results_df$p_value[row_index] <- p_value
+  results_df$Mean[row_index]<- MeanDir_deg
+}
+
+View(results_df)
+
+mergedEmlen<-merge(results_df, Emlen_IndData_2, by = "Identificator") #merge both dataframes by identificator
+View(mergedEmlen)
+
+mergedEmlen$Mean<-as.circular(deg2rad(mergedEmlen$Mean))
+mergedEmlen<-filter(mergedEmlen, p_value<0.05)
+str(mergedEmlen)
+View(mergedEmlen)
+
+#To check unique values and how many data points a ring has to perform a paired test
+uniqueValues_Ring<-unique(mergedEmlen$Ring)
+length(uniqueValues_Ring)
+
+occurrences <- mergedEmlen %>% count(Ring) #to see how many times a ring occours in the dataframe (this is because we need to have the same size if we want to do a paired test)
+print(occurrences)
+
+#tO TESTS
+EmlenData_ForTest<- dplyr::select(mergedEmlen, c("Identificator", "test_statistic","p_value", "rho", "Mean", "Species","Group","Treatment","Ring","BreedingDistribution", "Week"))
+
+Emlen_local<-filter(EmlenData_ForTest, Group=="local") #just local
+Emlen_local<-Emlen_local %>%
+  group_by(Ring) %>%
+  summarise(circular_mean = mean.circular(Mean))
+
+Emlen_total<-filter(EmlenData_ForTest, Group=="total") #just 24h treatment
+
+nrow(Emlen_local)
+nrow(Emlen_total)
+
+#watson.williams.test FOR ALL THE DATA
+
+Watson_data <- list(
+  Emlen_total$Mean <- as.circular(Emlen_total$Mean, units="degrees", template="geographics"),
+  Emlen_local$circular_mean <- as.circular(Emlen_local$circular_mean, units="degrees", template="geographics")
+)
+watson.williams.test(Watson_data) #Watson test not paired
+
+
+
+#To perform a paired test (Hotelling test)
+
+common_ids <- intersect(Emlen_local$Ring, Emlen_total$Ring)
+
+# Filter dataframes to include only common IDs
+Emlen_local_ID <- Emlen_local[Emlen_local$Ring %in% common_ids, ]
+Emlen_total_ID <- Emlen_total[Emlen_total$Ring %in% common_ids, ]
+
+nrow(Emlen_local_ID)
+nrow(Emlen_total_ID)
+
+Emlen_hotelling<-merge(Emlen_local_ID, Emlen_total_ID, by="Ring")
+Emlen_hotelling<-dplyr::select(Emlen_hotelling, c("Ring","circular_mean","Mean", "Week"))
+Emlen_hotelling$circular_mean<-as.vector(rad2deg(Emlen_hotelling$circular_mean))
+Emlen_hotelling$circular_mean <- (Emlen_hotelling$circular_mean + 360) %% 360
+Emlen_hotelling$Mean<-as.vector(rad2deg(Emlen_hotelling$Mean))
+
+source("https://raw.githubusercontent.com/olitroski/circular/master/paired.hotelling.r") #para correr el hotelling test. p.value<0.05 there are differences between the mean in the samples
+paired.hotelling(Emlen_hotelling$circular_mean, Emlen_hotelling$Mean)
+
+#And for a circular ANOVA
+Emlen_Anova<-Emlen_hotelling
+colnames(Emlen_Anova)<-c("Ring","local","total","Week")
+Emlen_Anova<-pivot_longer(data= Emlen_Anova, 
+                          cols = "local":"total",
+                          names_to = "Group",
+                          values_to = "Mean")
+Emlen_Anova$Mean<-as.circular(deg2rad(Emlen_Anova$Mean))
+```
+
+```{r, include=TRUE, warning=FALSE, message = FALSE, results='hide'}
+emlenanova <- bpnr(pred.I = Mean ~ Group + Week, data = Emlen_Anova,
+                  its = 1000, burn = 100, n.lag = 3, seed = 101)
+```
+
+```{r, include=TRUE, warning=FALSE, message = FALSE}
+summary(emlenanova)
+emlenanova
+coef_circ(emlenanova, type = "continuous", units = "degrees")
+coef_circ(emlenanova, type = "categorical", units = "degrees")
+fit(emlenanova)
+```
+
+## Color palette
+
+This is the code for the color palette, the last step when I finish everything and I want to make it pretty. Im using a default dataset
+
+```{r "avatar color palette", echo=FALSE}
+
+ggplot(airquality, aes(x = Day, y = Temp,
+     group = as.factor(Month), color = as.factor(Month))) +
+     geom_point(size = 2.5) +
+     scale_color_avatar(palette = "AirNomads") +
+     theme_avatar()
+```
+
+## Cuartito de San Alejo
+
+This is the part of the code where I put everything I tried and does not worked but I don't want to delete
+
+```{r "Code I dont want to delete but I dont want to forget", echo=FALSE}
+#sen24sector_1 <-as.vector(sin(c(0,15,30,45,60,75,90,105,120,135,150,165,180,195,210,225,240,255,270,285,300,315,330,345)))  #It has the values for the sin for each angle in the 24 sectors
+#print.default(sen24sector_1, digits = 3)
+#deg2rad(sen24sector_1)
+
+#sen24sector_1 <- lapply(sen24sector_1, "*", (3.14/180))
+#cos24sector_1=   #It has the values for the cos for each angle in the 24 sectors
+
+#cos_angle1= cos*  #This line multiplies each cos for the angle 1 with the number of scratches in that sector
+#y1=
+#arcotan_2<-((atan2(y1,x1))*(180/pi)) #This code takes out the arcotangent from two axis: y1 and x1
+
+#______
+
+
+#{
+ # axial_dir_a<-(arctan_angle2+360)/2
+  #  axial_dir_b<-(arctan_angle2)/2
+   # pvalue_2<-((-EmlenFunnel$TotalScratches)*(r_value_2)^2)
+#} else if (arctan_angle1<0){
+ #   unimodal_dir<-arctan_angle1+360
+  #  pvalue_1<-((-EmlenFunnel$TotalScratches)*(r_value_1)^2)
+  #} else {
+   # unimodal_dir<-arctan_angle1
+    #pvalue_1<-((-EmlenFunnel$TotalScratches)*(r_value_1)^2)}
+
+
+#______
+
+
+
+#if(r_value_1<r_value_2) {
+ # axial_dir_a<-(arctan_angle2+360)/2
+  #  axial_dir_b<-(arctan_angle2)/2
+   # pvalue_2<-((-EmlenFunnel$TotalScratches)*(r_value_2)^2)
+#} else if (arctan_angle1<0){
+ #   unimodal_dir<-arctan_angle1+360
+  #  pvalue_1<-((-EmlenFunnel$TotalScratches)*(r_value_1)^2)
+  #} else {
+   # unimodal_dir<-arctan_angle1
+  #  pvalue_1<-((-EmlenFunnel$TotalScratches)*(r_value_1)^2)}
+
+#______
+
+
+#axial_dir_a<-ifelse(r_value_1<r_value_2, (arctan_angle2+360)/2, NA)
+#axial_dir_a
+# #axial_dir_b
+# 
+# #ifelse(r_value_1<r_value_2, {axial_dir_a<-(arctan_angle2+360)/2; axial_dir_b<-(arctan_angle2)/2; pvalue_2<-(exp((-EmlenFunnel$TotalScratches)*(r_value_2)^2))},
+#  #      ifelse(arctan_angle1<0, {unimodal_dir<-arctan_angle1+360; pvalue_1<-((-EmlenFunnel$TotalScratches)*(r_value_1)^2)}, {unimodal_dir<-arctan_angle1; pvalue_1<-(exp((-EmlenFunnel$TotalScratches)*(r_value_1)^2))}))
+# 
+# #axial_dir_a
+# #axial_dir_b
+# #pvalue_2
+# #unimodal_dir
+# #pvalue_1
+# 
+# #______
+# 
+# 
+# # Create a dataframe with some example data
+# df <- data.frame(values = c(2, 5, 8, 11, 14))
+# 
+# # Create a vector of positions to retrieve
+# positions <- c(1, 3, 5)
+# 
+# # Retrieve the values from the dataframe based on the positions
+# retrieved_values <- df$values[positions]
+# 
+# # Print the retrieved values
+# print(retrieved_values)
+# 
+# #________
+# 
+# 
+# # Create two vectors
+# vector1 <- c(2, 5, 8, 11, 12)
+# vector2 <- c(3, 6, 9, 12, 15)
+# 
+# # Create a vector to store the closest positions
+# closest_positions <- numeric(length(vector1))
+# 
+# # Loop over each value in vector1
+# for (i in 1:length(vector1)) {
+#   # Calculate the distance to each value in vector2
+#   distances <- abs(vector1[i] - vector2)
+#   # Find the position of the closest value
+#   closest_positions[i] <- which.min(distances)
+# }
+# 
+# # Print the resulting vector of closest positions
+# print(closest_positions)
+# 
+# 
+# #___________
+# 
+# 
+# 
+# # Create a dataframe with some example data
+# df <- data.frame(x = c(1, 2, 3),
+#                  y = c(4, 5, 6),
+#                  z = c(7, 8, 9))
+# 
+# # Create a vector of column names to match, where each position in the vector represents a position in the dataframe
+# col_names <- c("z", "x", "y")
+# 
+# # Initialize an empty vector to store the extracted values
+# extracted_values <- vector()
+# 
+# # Use a for loop to extract values for each column name in the vector
+# for (i in seq_along(col_names)) {
+#   extracted_values <- c(extracted_values, df[i, col_names[i]])
+# }
+# 
+# # Print the extracted values
+# print(extracted_values)
+# 
+# 
+# #_______
+# 
+# df <- data.frame(ID = 1:4, S30 = c(2, 3, 4, 5), S45 = c(1, 2, 3, 4), S60 = c(5, 6, 7, 8))
+# 
+# # create a vector to store the repeated measurements
+# repeated <- vector()
+# 
+# # loop through each row of the data frame
+# for (i in 1:nrow(df)) {
+#   # multiply each column by its column name
+#   row_multiplication <- df[i, 2:ncol(df)] * as.integer(colnames(df)[2:ncol(df)])
+#   
+#   # append the repeated measurements to the vector
+#   repeated <- as.data.frame(c(repeated, row_multiplication))
+# }
+# 
+# # print the results
+# print(repeated)
+# 
+# 
+# 
+# 
+# library(circular)
+# # create a sample data frame
+# df <- data.frame("30" = c(2, 1, 3), "45" = c(0, 4, 2), "60" = c(1, 2, 1))
+# 
+# # create a vector to store the repeated column names
+# rayleigh_results <- c()
+# 
+# # loop through each row of the data frame
+# for (i in 1:nrow(df)) {
+#   
+#   grados <- c()
+#   # repeat each column name according to the corresponding cell value
+#   repeated_row <- rep(colnames(df), times = df[i, ])
+#   
+#   # append the repeated names to the vector
+#   grados <- as.circular(c(grados, repeated_row), units="degrees")
+#   test<-rayleigh.test(grados)
+#   
+# }
+# 
+# # print the results
+# as.data.frame(grados)
+# 
+# 
+# 
+# 
+# 
+# # load the circular package for the Rayleigh test
+# library(circular)
+# 
+# # create a sample dataset
+# df <- data.frame(ID = 1:5, Angle1 = c(30, 45, 60, 75, 90), Angle2 = c(60, 75, 90, 105, 120))
+# 
+# # define a function to perform the Rayleigh test on a vector of angles
+# rayleigh_test <- function(x) {
+#   # convert the angles to radians
+#   x_rad <- x * pi / 180
+#   
+#   # perform the Rayleigh test
+#   result <- rayleigh.test(circular(x_rad))
+#   
+#   # return a summary of the test as a data frame
+#   data.frame(p_value = result$p.value, test_statistic = result$statistic)
+# }
+# 
+# # apply the rayleigh_test function to each row of the dataset using apply()
+# df_summary <- cbind(df, t(apply(df[, 2:3], 1, rayleigh_test)))
+# 
+# # rename the columns of the summary table
+# colnames(df_summary)[4:5] <- c("Angle1_p_value", "Angle1_test_statistic")
+# colnames(df_summary)[6:7] <- c("Angle2_p_value", "Angle2_test_statistic")
+# 
+# # print the results
+# print(df_summary)
+# 
+# 
+# 
+# 
+# 
+# 
+# # load the circular package for circular statistics
+# library(circular)
+# library(cplots)
+# 
+# # create a sample dataset with angles in degrees
+# df <- data.frame(Angle = c(30, 45, 60, 75, 90, 105, 120))
+# 
+# # convert the angles to radians
+# angles_rad <- df$Angle * pi / 180
+# 
+# # compute the mean angle and circular standard deviation
+# mean_angle <- mean.circular(circular(angles_rad))
+# sd_angle <- sd.circular(circular(angles_rad))
+# 
+# # compute the Rayleigh test for the entire dataset
+# rayleigh_result <- rayleigh.test(circular(angles_rad))
+# 
+# # create a circular histogram with the distribution
+# chist(angles_rad, col = "lightblue")
+# 
+# # add a circular density line to the histogram
+# lines((angles_rad), col = "blue")
+# 
+# # add a mean angle indicator to the plot
+# arrows.circular(mean_angle, 1.2, angle = 90, col = "red")
+# 
+# # add a circular standard deviation indicator to the plot
+# ribbon(mean_angle, c(mean_angle - sd_angle, mean_angle + sd_angle), col = "pink")
+# 
+# # add the R value for the entire dataset to the plot
+# text(-1.5, 1.5, paste0("R = ", round(rayleigh_result$statistic, 2), ", p = ", format.pval(rayleigh_result$p.value)))
+# 
+# # set the plot title and axis labels
+# title("Circular Data Plot with Distribution and R Value") & xlab("Angle (degrees)") & ylab("Density")
+# 
+# 
+# 
+# data = c(5, 350, 330, 40, 20, 345, 359, 10, 15, 310)
+# mean(data)
+# data.circular=circular(data, units="degrees", template="geographics", modulo="2pi")
+# mean(data.circular)
+# 
+# plot(data.circular, col="blue")
+# arrows.circular(mean(data.circular), col="red", length=0)
+# 
+# control = c(213.8, 151.3, 195.4, 32.7, 307.7, 93.9, 187.8, 357.5, 217.6, 307, 196.6, 233.6, 97)
+# control = circular(control, units = "degrees", template = "geographics", modulo = "2pi")
+# 
+# 
+# 
+# 
+# plot(EmlenFunnels_withDir$directionEmlen, cex=1.5, bin=720, stack=TRUE, sep=0.035, shrink=1.3)
+# all_r<-rayleigh.test(EmlenFunnels_withDir$directionEmlen)
+# arrows.circular(mean.circular(EmlenFunnels_withDir$directionEmlen))
+# 
+# 
+# x <- stats::runif(12); y <- stats::rnorm(12)
+# i <- order(x, y); x <- x[i]; y <- y[i]
+# plot(x,y, main = "arrows(.) and segments(.)")
+# ## draw arrows from point to point :
+# s <- seq(length(x)-1)  # one shorter than data
+# arrows(x[s], y[s], x[s+1], y[s+1], col = 1:3)
+# s <- s[-length(s)]
+# segments(x[s], y[s], x[s+2], y[s+2], col = "pink")
+# 
+# 
+# 
+# plot(EmlenFunnels_withDir$directionEmlen, pch = 16, cex = 1, stack = FALSE,
+#      axes = TRUE, start.sep=0, sep = 0.025, shrink = 1,
+#      bins = NULL, ticks = FALSE, tcl = 0.025, tcl.text = 0.125,
+#      col = NULL, tol = 0.04, uin = NULL,
+#      xlim = c(-1, 1), ylim = c(-1, 1), digits = 2, units = NULL,
+#      template = NULL, zero = NULL, rotation = NULL, 
+#      main = NULL, sub=NULL, xlab = "", ylab = "", 
+#      control.circle=circle.control())
+
+
+
+```

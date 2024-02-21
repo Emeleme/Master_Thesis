@@ -1,6 +1,6 @@
-setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal Ecology 2022-2024/Tesis/Database")
+setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database")
 #read .csv data file and assign it a name
-Emlen_IndData_2<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal Ecology 2022-2024/Tesis/Database/EmlenData_Spring2023.txt", h=T)
+Emlen_IndData_2<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/EmlenData_Spring2023.txt", h=T)
 
 #check data
 names(Emlen_IndData_2) #returns names of the columns
@@ -17,11 +17,17 @@ library(readr)
 library(remotes)
 library(bpnreg)
 library(CircStats)
+library(performance)
+library(tectonicr)
 
 # ANALYSIS FOR INDIVIDUAL BIRDS - UNIMODAL --------------------------------------
 #import my data, update column name and assigning a new row as heading
+#This are the angles: c("0","15","30","45","60","75","90","105","120","135","150",
+#"165","180","195","210","225","240","255","270","285","300","315","330","345")
+#We use the middle angle to make all calculations
+#c("7.5","22.5","37.5","52.5","67.5","82.5","97.5","112.5","127.5","142.5","157.5","172.5","187.5","202.5","217.5","232.5","247.5","262.5","277.5","292.5","307.5","322.5","337.5","352.5")
 setnames(Emlen_IndData_2, old=c("S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S15","S16","S17","S18","S19","S20","S21","S22","S23","S24"), 
-         new = c("0","15","30","45","60","75","90","105","120","135","150","165","180","195","210","225","240","255","270","285","300","315","330","345"), skip_absent=TRUE)
+         new = c("7.5","22.5","37.5","52.5","67.5","82.5","97.5","112.5","127.5","142.5","157.5","172.5","187.5","202.5","217.5","232.5","247.5","262.5","277.5","292.5","307.5","322.5","337.5","352.5"), skip_absent=TRUE)
 
 Emlen_IndData_2<-tibble::rowid_to_column(Emlen_IndData_2, "Identificator")
 deg2rad <- function(deg) {(deg * pi) / (180)} #converts degrees to radians.
@@ -44,7 +50,7 @@ View(Emlen_IndData_2)
 
 datalong_EmlenInd_2<-pivot_longer( #makes it a frequency to rep after
   Emlen_IndData_2,
-  cols=c("0","15","30","45","60","75","90","105","120","135","150","165","180","195","210","225","240","255","270","285","300","315","330","345"),
+  cols=c("7.5","22.5","37.5","52.5","67.5","82.5","97.5","112.5","127.5","142.5","157.5","172.5","187.5","202.5","217.5","232.5","247.5","262.5","277.5","292.5","307.5","322.5","337.5","352.5"),
   names_to="sector",
   values_to="count")
 
@@ -54,7 +60,8 @@ results_df <- data.frame(Identificator = uniqueValues_ID,   #create an empty dat
                          test_statistic = numeric(length(uniqueValues_ID)),
                          p_value = numeric(length(uniqueValues_ID)),
                          Mean = numeric(length(uniqueValues_ID)),
-                         rho= numeric(length(uniqueValues_ID)))
+                         Lower_CI = numeric(length(uniqueValues_ID)),
+                         Upper_CI = numeric(length(uniqueValues_ID)))
 
 # Loop through unique identifiers
 for (i in uniqueValues_ID) {
@@ -62,12 +69,13 @@ for (i in uniqueValues_ID) {
   IndData <- as.data.frame(as.numeric(unlist(subset_data)))
   IndData <- na.omit(IndData)
   longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count)) #repeats the degrees the times we counted already
+  conf_interval <- confidence_interval(longdata, conf.level = 0.95, axial = FALSE)
   longdata <- deg2rad(longdata)  # Convert to radians
-  rayleigh_test <- rayleigh.test(longdata) #performs rayleigh test for each entry in the database
-  r1 <- rho.circular(longdata, na.rm = FALSE)
+  rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
   test_statistic <- rayleigh_test$statistic
   p_value <- rayleigh_test$p.value
   MeanDir<- mean.circular(longdata)
+
   
   # Convert the mean direction from radians to degrees and correct negative values
   MeanDir_deg <- rad2deg(MeanDir)  # Convert to degrees
@@ -77,10 +85,11 @@ for (i in uniqueValues_ID) {
   
   # Assign results to the correct rows
   row_index <- which(results_df$Identificator == i)
-  results_df$rho[row_index] <- r1
   results_df$test_statistic[row_index] <- test_statistic
   results_df$p_value[row_index] <- p_value
   results_df$Mean[row_index]<- MeanDir_deg
+  results_df$Lower_CI[row_index]<- conf_interval$conf.interval[1]
+  results_df$Upper_CI[row_index]<- conf_interval$conf.interval[2]
 }
 
 View(results_df)
@@ -88,8 +97,20 @@ View(results_df)
 mergedEmlen<-merge(results_df, Emlen_IndData_2, by = "Identificator") #merge both dataframes by identificator
 View(mergedEmlen)
 
+###plot Willow warblers capture
+
+Emlen_willys_capture<-filter(mergedEmlen, Species=="Willow_Warbler" & Treatment=="capture")
+Emlen_willys_capture$Mean<- as.circular(Emlen_willys_capture$Mean, units='degrees', template='geographics', modulo="2pi")
+mean_dir_w <- circular::mean.circular(Emlen_willys_capture$Mean)
+rtest_capture_w<- rayleigh.test(Emlen_willys_capture$Mean)
+
+plot(Emlen_willys_capture$Mean, cex=1.5, bin=720, stack=FALSE, sep=0.035, shrink=1.3, main = "Willow warblers capture day")
+arrows.circular(mean.circular(Emlen_willys_capture$Mean), y=rtest_capture_w$statistic, length=0.1)
+
+###
+
 mergedEmlen$Mean<-as.circular(deg2rad(mergedEmlen$Mean))
-mergedEmlen<-filter(mergedEmlen, p_value<0.05)
+#mergedEmlen<-filter(mergedEmlen, p_value<0.05) #Quitar los que no tienen direccion??
 str(mergedEmlen)
 View(mergedEmlen)
 
@@ -101,9 +122,9 @@ occurrences <- mergedEmlen %>% count(Ring) #to see how many times a ring occours
 print(occurrences)
 
 #tO TESTS
-EmlenData_ForTest<- dplyr::select(mergedEmlen, c("Identificator", "test_statistic","p_value", "rho", "Mean", "Species","Group","Treatment","Ring","BreedingDistribution", "Week"))
+EmlenData_ForTest<- dplyr::select(mergedEmlen, c("Identificator", "test_statistic","p_value", "rho", "Mean", "Species", "Group", "Treatment","Ring","BreedingDistribution", "Week"))
 
-Emlen_local<-filter(EmlenData_ForTest, Group=="local") #just local
+Emlen_local<-filter(EmlenData_ForTest, Group=="local") #just local time (sunset and sunrise of the capture day)
 Emlen_local<-Emlen_local %>%
   group_by(Ring) %>%
   summarise(circular_mean = mean.circular(Mean))
@@ -200,14 +221,14 @@ paired.hotelling(Emlen_hotelling$Control_Mean, Emlen_hotelling$Treatment_Mean)
 
 
 
-#And for a circular ANOVA
+#And for a circular ANOVA THIS IS NOT WORKING YET AND NO INPUT ON THIS 
 Emlen_Anova<-Emlen_hotelling
-colnames(Emlen_Anova)<-c("Ring","local","total","Week") #REVISAR!!
-#Emlen_Anova<-pivot_longer(data= Emlen_Anova, 
- #                         cols = "local":"total",
-  #                        names_to = "Group",
-   #                       values_to = "Mean")
-#Emlen_Anova$Mean<-as.circular(deg2rad(Emlen_Anova$Mean))
+colnames(Emlen_Anova)<-c("Ring","local","total","Week","Difference","Angular_change") #REVISAR!!
+Emlen_Anova<-pivot_longer(data= Emlen_Anova, 
+                          cols = "local":"total",
+                          names_to = "Group",
+                          values_to = "Mean")
+Emlen_Anova$Mean<-as.circular(deg2rad(Emlen_Anova$Mean))
 
 
 
@@ -220,26 +241,122 @@ coef_circ(emlenanova, type = "categorical", units = "degrees")
 fit(emlenanova)
 
 #ESTA MONDA SIGUE SIN FUNCIONAR Y NO SE POR QUE!!!!!
-# datalong_rep1<-data.frame(Ring=rep(datalong_EmlenInd_2$Ring, times=datalong_EmlenInd_2$count), NumericID=rep(datalong_EmlenInd_2$NumericID, times=datalong_EmlenInd_2$count),Treatment=rep(datalong_EmlenInd_2$Treatment, times=datalong_EmlenInd_2$count), BreedingDistribution=rep(datalong_EmlenInd_2$BreedingDistribution, times=datalong_EmlenInd_2$count), degree=rep(datalong_EmlenInd_2$sector, times=datalong_EmlenInd_2$count))
-# datalong_rep1$degree<-as.numeric(datalong_rep1$degree)
-# datalong_rep1$degree<-deg2rad(datalong_rep1$degree)
-# datalong_rep1$degree<-as.circular(datalong_rep1$degree, units="radians", type="angles")
-# datalong_rep1$NumericID<-as.numeric(datalong_rep1$NumericID)
-# datalong_rep1$Treatment<-as.factor(datalong_rep1$Treatment)
-# datalong_rep1$BreedingDistribution<-as.factor(datalong_rep1$BreedingDistribution)
-# 
-# str(datalong_rep1)
-# 
-# aa<- bpnme(degree ~ Treatment + (1|NumericID), data=datalong_rep1, its=100) #, burn=10, n.lag=3, seed=11)
+ datalong_rep1<-data.frame(Ring=rep(datalong_EmlenInd_2$Ring, times=datalong_EmlenInd_2$count), NumericID=rep(datalong_EmlenInd_2$NumericID, times=datalong_EmlenInd_2$count),Treatment=rep(datalong_EmlenInd_2$Treatment, times=datalong_EmlenInd_2$count), BreedingDistribution=rep(datalong_EmlenInd_2$BreedingDistribution, times=datalong_EmlenInd_2$count), degree=rep(datalong_EmlenInd_2$sector, times=datalong_EmlenInd_2$count))
+ datalong_rep1$degree<-as.numeric(datalong_rep1$degree)
+ datalong_rep1$degree<-deg2rad(datalong_rep1$degree)
+ datalong_rep1$degree<-as.circular(datalong_rep1$degree, units="radians", type="angles")
+ datalong_rep1$NumericID<-as.numeric(datalong_rep1$NumericID)
+ datalong_rep1$Treatment<-as.factor(datalong_rep1$Treatment)
+ datalong_rep1$BreedingDistribution<-as.factor(datalong_rep1$BreedingDistribution)
+ 
+ str(datalong_rep1)
+ 
+ 
+ ####bayesian model tryout####
+ 
+ subset_model<-subset(datalong_rep1, NumericID==c(1,2))
+ model_10its_10burn <- bpnme(degree ~ Treatment + (1|NumericID), data=subset_model, its=10, burn=10, n.lag=3) #, burn=10, n.lag=3, seed=11)
+ model_100its_10burn <- bpnme(degree ~ Treatment + (1|NumericID), data=subset_model, its=100, burn=10, n.lag=3)
+ model_10its_100burn <- bpnme(degree ~ Treatment + (1|NumericID), data=subset_model, its=10, burn=100, n.lag=3)
+ model_100its_100burn <- bpnme(degree ~ Treatment + (1|NumericID), data=subset_model, its=100, burn=100, n.lag=3)
+ 
+#This is one the real model to test <- bpnme(degree ~ Treatment + (1|NumericID), data=datalong_rep1, its=100) #, burn=10, n.lag=3, seed=11)
+
+model_10its_10burn
+model_100its_10burn
+model_10its_100burn
+model_100its_100burn
+
+output_file_m10i10b <- "model_10its_10burn.txt" #creates output file
+sink(output_file_m10i10b) #This opens a new conection to the output file
+model_10its_10burn #this is the variable redirected to the file.txt
+sink() #closes the conection
+
+output_file_m100i10b <- "model_100its_10burn.txt" #creates output file
+sink(output_file_m100i10b) #This opens a new conection to the output file
+model_100its_10burn #this is the variable redirected to the file.txt
+sink() #closes the conection
+
+output_file_m10i100b <- "model_10its_100burn.txt" #creates output file
+sink(output_file_m10i100b) #This opens a new conection to the output file
+model_10its_100burn #this is the variable redirected to the file.txt
+sink() #closes the conection
+
+output_file_m100i100b <- "model_100its_100burn.txt" #creates output file
+sink(output_file_m100i100b) #This opens a new conection to the output file
+model_100its_100burn #this is the variable redirected to the file.txt
+sink() #closes the conection
+
+####glmer model####
+
+Emlen_linearized <- Emlen_IndData_2 %>%
+  pivot_longer(
+    cols=c("7.5","22.5","37.5","52.5","67.5","82.5","97.5","112.5","127.5","142.5","157.5","172.5","187.5","202.5","217.5","232.5","247.5","262.5","277.5","292.5","307.5","322.5","337.5","352.5"),    names_to = "degree",
+    values_to = "counts"
+  )
+Emlen_linearized <- Emlen_linearized[, c("Ring", "degree", "counts", "Treatment")]
+Emlen_linearized$degree <- as.numeric(Emlen_linearized$degree) + 7.5
+Emlen_linearized$radians <- deg2rad(Emlen_linearized$degree)
+
+Emlen_lmer_Ring <- glmer(counts ~ sin(radians) + cos(radians) + (1|Ring), data = Emlen_linearized, na.action = 'na.fail', family="poisson")
+summary(Emlen_lmer_Ring)
+check_model(Emlen_lmer_Ring)
+plot(DHARMa::simulateResiduals(Emlen_lmer_Ring)) 
+fam.pez <- family(Emlen_lmer_Ring)
+
+FUN_RevTrans_pez <- function(x){
+  return(fam.pez$linkinv(x)) 
+}
+visreg(Emlen_lmer_Ring, "radians", trans = FUN_RevTrans_pez)
+
+gr <- emmeans::ref_grid(Emlen_lmer_Ring, cov.keep= c('radians'))
+emm_DS <- emmeans::emmeans(gr, spec= c('radians'), level= 0.95)
+emm_DS_DF <- as.data.frame(emm_DS)
+
+ggplot() +
+  geom_point(data=Emlen_linearized, aes(x=radians, y=counts),alpha=0.35)+
+  geom_ribbon(data= data.frame(emm_DS), aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
+              alpha=0.5, fill= 'grey80') +
+  geom_line(data = data.frame(emm_DS), aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)
 
 
 
+Emlen_lmer_Treatment <- glmer(counts ~ sin(radians)*Treatment + cos(radians)*Treatment + (1|Ring), data = Emlen_linearized, na.action = 'na.fail', family="poisson")
+summary(Emlen_lmer_Treatment)
+check_model(Emlen_lmer_Treatment)
+plot(DHARMa::simulateResiduals(Emlen_lmer_Treatment)) 
+
+gr <- emmeans::ref_grid(Emlen_lmer_Treatment, cov.keep= c('radians', 'Treatment'))
+emm_DS <- emmeans::emmeans(gr, spec= c('radians','Treatment'), level= 0.95)
+emm_DS_DF <- as.data.frame(emm_DS)
+
+ggplot() +
+  geom_point(data=Emlen_linearized, aes(x=radians, y=counts),alpha=0.35)+
+  geom_ribbon(data= data.frame(emm_DS), aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
+              alpha=0.5, fill= 'grey80') +
+  geom_line(data = data.frame(emm_DS), aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
+  facet_wrap(vars(Treatment))
 
 
 
+visreg(Emlen_lmer_Treatment, "radians", by="Treatment", trans = FUN_RevTrans_pez)
+length(unique(Emlen_linearized$Ring)) #MIRAR!!!!
+emmeans(Emlen_lmer_Treatment, list(pairwise ~ radians:Treatment), adjust="tukey")
 
 
+Emlen_lmer_Null <- glmer(counts ~ 1 + (1|Ring), data = Emlen_linearized, na.action = 'na.fail', family="poisson")
+
+
+anova(Emlen_lmer_Ring, Emlen_lmer_Null, test="LRT")
+anova(Emlen_lmer_Treatment, Emlen_lmer_Null, test="LRT")
+
+emmeans(Emlen_lmer_Ring, ~radians)
+FUN_RevTrans_pez(3.82)
+
+
+#DO EMMEANS AND POSTHOC COMPARISON PORQUE NO TIENE SENTIDO! list(pairwise)
 ########
+#CODES THAT I USED, DIDN'T WORK AND IM SCARED TO DELETE
 
 #IndRing<-as.data.frame(as.numeric(unlist(Emlen_ind_long)))
 #mean_direction<-mean.circular(longdata)

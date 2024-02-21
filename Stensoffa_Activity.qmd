@@ -1,0 +1,581 @@
+---
+title: "Stensoffa_Activity"
+author: "Maria Laura Mahecha Escobar"
+format: pdf
+editor: visual
+---
+
+This document has the codes and figures generated for Maria Laura's Master thesis - Activity analysis for autumn season.
+
+```{r}
+#| echo: false 
+library(knitr) 
+opts_chunk$set(fig.align='center', fig.width=6, fig.height=4.2,  
+               cache=TRUE, size="big")
+```
+
+## Data set up
+
+First, these are the libraries used to run this code.
+
+```{r Libraries}
+#| output: false 
+#| warning: false  
+library(RSQLite) 
+library(ggplot2) 
+library(scales) 
+library(dplyr)
+library(tidyr) 
+library(data.table) 
+library(chron) 
+library(haven) 
+library(lubridate) 
+library(gridExtra) 
+library(lme4)
+library(emmeans)
+library(performance)
+library(DHARMa) 
+library(visreg)
+library(report)
+library(car)
+library(nortest)
+library(glmmTMB)
+library(actogrammr)
+library(digiRhythm)
+library(lemon)
+library(hms)
+library(plyr)
+library(ggpubr)
+# detach("matrix", unload = TRUE)
+# install.packages("matrix", dependencies=TRUE)
+```
+
+First, set the directory to wherever the documents are. Use setw() function.
+
+```{r Directory}
+#| include: false 
+setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/Autumn/Stensoffa/Stensoffa_activity_copia/2023_Robin_MariaLaura")
+```
+
+Second, connecting to the database .db to get all the raw activity data. This figure is saved as an aditional file.
+
+```{r .db}
+#| output: false 
+#Code made by Giuseppe Bianco
+# db.act<-data.frame()
+load.and.save.activity.data <- function()
+{
+  ### Load activity data - Starts on Oct 19 and ends Nov 1
+  db <- read.csv("Data/Results_20min_Average.csv")
+  db$DateTime <- as.POSIXct(db$DateTime)
+  start <- as.POSIXct("2023-10-19 00:00:00")
+  end <- as.POSIXct("2023-11-02 00:00:00")
+  db <- subset(db, DateTime > start & DateTime < end)
+  time.seq <- seq(start, end, "1 day")
+  ### --- NOTE the fix for daylight saving time !!!
+  time.seq[time.seq > as.POSIXct("2023-10-29 00:00:00")] <- 
+    time.seq[time.seq > as.POSIXct("2023-10-29 00:00:00")] + 3600
+  db$Day <- as.numeric(cut(db$DateTime, breaks = time.seq, include.lowest = T))
+  
+  # Add Setup information
+  setup <- read.csv("Data/Setup.csv")
+  db <- join(db, setup)
+  
+  # Add light schedule
+  light <- read.csv("Data/Light_Schedule.csv")
+  light$Date <- as.Date(light$Date,  format="%d/%m/%Y")
+  light$Light.ON <- as_hms(paste(light$Light.ON, ":00", sep=""))
+  light$Light.OFF <- as_hms(paste(light$Light.OFF, ":00", sep=""))
+  light$Exp.day.length <- difftime(light$Light.OFF, 
+                                   light$Light.ON, units = "hours")
+  
+  # We need Date to join
+  db$Date <- as.Date(format(db$DateTime, "%Y-%m-%d"))
+  db <- join(db, light)
+  db$Light <- ifelse(as_hms(db$DateTime) > db$Light.ON & as_hms(db$DateTime) < 
+                       db$Light.OFF, "On", "Off")
+  
+  # Add local Sunrise and Sunset
+  db <- ddply(db, .(Day), mutate, 
+              Sunrise = Light.ON[Setup == "Control"][1],
+              Sunset = Light.OFF[Setup == "Control"][1],
+              Loc.day.length = difftime(Sunset, Sunrise, units = "hours"))
+  
+  # Add feeding time
+  feeding <- read.csv("Data/Feeding_Schedule.csv")
+  feeding$Date <- as.Date(feeding$Date, format="%d/%m/%Y")
+  feeding$In <- as.POSIXct(paste(feeding$Date, feeding$In),
+                           format = "%Y-%m-%d %H:%M")
+  feeding$Out <- as.POSIXct(paste(feeding$Date, feeding$Out), 
+                            format = "%Y-%m-%d %H:%M")
+  
+  # Function to apply feeding time
+  feeding.foo <- function(row) 
+  {
+    d <- as.Date(row["Date"])  # apply() returns characters
+    dt <- as.POSIXct(row["DateTime"])  # apply()
+    h <- row["House"]
+    in.time <- feeding$In[feeding$Date == d & feeding$House == h]
+    out.time <- feeding$Out[feeding$Date == d & feeding$House == h]
+    bF <- any(in.time < (dt + 600) & out.time >= (dt - 600))
+  }
+  db$Feeding <- apply(db, 1, feeding.foo) # Apply the function to all rows
+  
+  # Make a 1h feeding interval
+  feeding1h.foo <- function(bFeed) 
+  {
+    feeding1h <- rep(FALSE, length(bFeed))
+    idx <- which(bFeed == TRUE)[1]
+    if(!is.na(idx)) feeding1h[idx:(idx + 2)] <- TRUE
+    return(feeding1h)
+  }
+  # Apply the function within each group of House
+  db <- ddply(db, .(House, Ring, Day), mutate, 
+              Feeding.1h = feeding1h.foo(Feeding))
+  
+  ### Add problem with front door lamps
+  db <- join(db, feeding[, c("Date", "House", "Door.lamp.problem")])
+  
+  ### Reorder dataset ###
+  db <- db[, 
+           c("Species", "House", "Cage", "Ring", "Day", "DateTime", "FlyTimeRatio",
+               # "Direction", "Speed", "N", ### <------ Orientation?
+               "Light.ON", "Light.OFF", "Exp.day.length", "Light", "Sunrise", "Sunset", 
+               "Loc.day.length", "Setup", "Feeding", "Feeding.1h", "Door.lamp.problem")]
+  factor.colnames <- c("Species", "House", "Cage", "Ring", "Light", "Setup")
+  db[factor.colnames] <- lapply(db[factor.colnames], as.factor)
+  db <- ddply(db, .(House, Cage)) # Reorder data.frame
+  
+  # Set the activity level threshold of 1% for orientation <--------------------
+  # db$Active <- db$FlyTimeRatio >= 0.01
+  # db$Direction[!db$Active] <- NA # Remove non-active intervals
+  
+  # # (Re-)Set the activity level threshold of 5% for the Activity Analysis <-----
+  # db$Active <- db$FlyTimeRatio >= 0.05
+  
+  # Save dataset
+  db.act <- db
+  assign("db.act", db, envir = .GlobalEnv)  # Assign db.act to the global environment
+  save(db.act, file="Robin_Daylength_Activity_RAW.RData")
+  print("File Saved!")
+
+}
+```
+
+When we load the workspace th database should be available
+
+```{r RWorkspace}
+load("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/Autumn/Stensoffa/Stensoffa_activity_copia/2023_Robin_MariaLaura/Robin_Daylength_Activity_RAW.RData", .GlobalEnv)
+```
+
+Now lets plot the raw data. This figure is saved as an aditional file
+
+```{r plot_raw}
+#Code made by Giuseppe Bianco
+plot.activity.all.by.house <- function(db = db.act)
+{
+  # Prep time for plot
+  db$Time <- as.POSIXct(as.character(db$DateTime), 
+                        origin=as.POSIXct("1970-01-01"), tz="GMT")
+  db$Hour <- as.numeric(format(db$DateTime,"%H"))
+  #db$Day <- format(db$DateTime,"%b %d")
+  db$Day <- paste("Day ", db$Day, "\n", format(db$DateTime,"%b %d"), sep="")
+  db$Day <- factor(db$Day, levels=unique(db$Day))  # Keep order across months
+  
+  # Convert Time with today date!
+  db$Time <- format(as.POSIXct(db$Time) ,format="%H:%M")
+  db$Time <- as.POSIXct(db$Time, format="%H:%M")
+  
+  time.limits = as.POSIXct(strftime(Sys.Date() + c(0, 1), format="%Y-%m-%d %H:%M"))
+  
+  # Create facets
+  db$Facet <- factor(paste("House", db$House, "- Setup:", db$Setup))
+  
+  # Plot
+  pdf(file="Figure_Activity_All_by_House.pdf", width=8, height=12)
+  
+  for (f in levels(db$Facet)) # levels keeps the order
+  {
+    print(f)
+    
+    db.facet <- droplevels(subset(db, Facet==f))
+    db.facet$Cage <- db.facet$Ring
+    
+    # Light schedule for the House
+    light.schedule <- ddply(db.facet, .(Day), summarise, 
+                            On = as.POSIXct(paste(Sys.Date(), Light.ON[1])), 
+                            Off = as.POSIXct(paste(Sys.Date(), Light.OFF[1])))
+    # Activity Plots
+    p1 <- ggplot(db.facet, aes(Time, FlyTimeRatio)) + 
+      # Day schedule
+      geom_rect(data=light.schedule, inherit.aes = F,
+                aes(xmin = On, xmax = Off, ymin = -Inf, ymax = Inf),
+                fill="yellow", alpha=0.5) +
+      # LinePlot
+      geom_line(aes(color = Cage)) + ylab("Flying Time Ratio") + # Color here is Cage!
+      xlab("Local Time (+2:00 UTC)") +
+      ylim(0, .42) +
+      geom_smooth(method="loess", se=F, span=.05, color=1, size=1) +
+      scale_x_datetime(date_labels="%H:%M", date_minor_breaks="1 hour",
+                       limits=time.limits, expand=c(0, 0)) +
+      facet_grid(Day ~ Facet) + theme_bw() + 
+      theme(legend.position = "top") + 
+      guides(color=guide_legend(ncol=4, title="Ring")) # Change Title: Cage -> Ring
+    
+    # Add feeding visits
+    feeding <- subset(db.facet, Feeding == T & Ring == Ring[1])
+    
+    p1 <- p1 +
+      geom_rect(data=feeding, inherit.aes = F,
+                aes(xmin = Time-600, xmax = Time+600, ymin = -Inf, ymax = Inf),
+                fill="red", alpha=0.6)
+    
+    # Add feeding 1h interval
+    feeding1h <- subset(db.facet, Feeding.1h == T & Ring == Ring[1])
+    feeding1h.start <- ddply(feeding1h, .(Day), summarise, Time = min(Time))
+    feeding1h.end <- ddply(feeding1h, .(Day), summarise, Time = max(Time))
+    
+    p1 <- p1 +
+      geom_vline(data=feeding1h.start, aes(xintercept = Time-600), color="darkred") +
+      geom_vline(data=feeding1h.end, aes(xintercept = Time+600), color="darkred") 
+    
+    # Add local Sunrise and Sunset
+    sunrise.sunset <- subset(db.facet, Ring == Ring[1])
+    sunrise <- ddply(sunrise.sunset, .(Day), summarise, 
+                     Time = as.POSIXct(paste(substr(Time[1], 1, 10), Sunrise[1])))
+    sunset <- ddply(sunrise.sunset, .(Day), summarise, 
+                    Time = as.POSIXct(paste(substr(Time[1], 1, 10), Sunset[1])))
+    
+    p1 <- p1 +  
+      geom_vline(data=sunrise, aes(xintercept = Time-600), linetype=2) +
+      geom_vline(data=sunset, aes(xintercept = Time+600), linetype=2)
+    
+    print(p1)
+  }
+  dev.off()
+}
+
+```
+
+Let's set the db to work with
+
+```{r stf_data}
+stf_data<-db.act
+```
+
+We can extract time as a separate column
+
+```{r stf_time}
+stf_data$time <- format(as.POSIXct(
+  stf_data$DateTime),format = "%H:%M:%S") #extract time as a column
+stf_data$HourDecimal <- apply(
+  sapply(strsplit(stf_data$time, ":"), as.numeric),
+  2,
+  function(x) sum(x * c(1, 1/60, 1/3600))
+)
+```
+
+Now lets set the "Night" and "Day" values for all the birds
+
+```{r stf_DayNight}
+#Assign the day and night values to each of the weeks 
+#(including the "day - night" schedule of the 24h setup)
+stf_data <- stf_data %>% 
+  mutate(
+    DayNight = case_when(
+      Day == "1" ~ ifelse(HourDecimal > 0 & HourDecimal < 7.73, "Night",
+                           ifelse(HourDecimal > 17.95, "Night", "Day")),
+      Day == "2" ~ ifelse(HourDecimal > 0 & HourDecimal < 7.77, "Night",
+                           ifelse(HourDecimal > 17.90, "Night", "Day")),
+      Day == "3" ~ ifelse(HourDecimal > 0 & HourDecimal < 7.80, "Night",
+                           ifelse(HourDecimal > 17.87, "Night", "Day")),
+      Day == "4" ~ ifelse(HourDecimal > 0 & HourDecimal < 7.83, "Night",
+                           ifelse(HourDecimal > 17.83, "Night", "Day")),
+      Day == "5" ~ ifelse(HourDecimal > 0 & HourDecimal < 7.87, "Night",
+                           ifelse(HourDecimal > 17.78, "Night", "Day")),
+      Day == "6" ~ ifelse(HourDecimal > 0 & HourDecimal < 7.90, "Night",
+                           ifelse(HourDecimal > 17.75, "Night", "Day")),
+      Day == "7" ~ ifelse(HourDecimal > 0 & HourDecimal < 7.93, "Night",
+                           ifelse(HourDecimal > 17.72, "Night", "Day")),
+      Day == "8" ~ ifelse(HourDecimal > 0 & HourDecimal < 7.97, "Night",
+                           ifelse(HourDecimal > 17.67, "Night", "Day")),
+      Day == "9" ~ ifelse(HourDecimal > 0 & HourDecimal < 8.00, "Night",
+                           ifelse(HourDecimal > 17.63, "Night", "Day")),
+      Day == "10" ~ ifelse(HourDecimal > 0 & HourDecimal < 8.05, "Night",
+                           ifelse(HourDecimal > 17.60, "Night", "Day")),
+      Day == "11" ~ ifelse(HourDecimal > 0 & HourDecimal < 8.08, "Night",
+                           ifelse(HourDecimal > 17.57, "Night", "Day")),
+      Day == "12" ~ ifelse(HourDecimal > 0 & HourDecimal < 8.12, "Night",
+                           ifelse(HourDecimal > 17.52, "Night", "Day")),
+      Day == "13" ~ ifelse(HourDecimal > 0 & HourDecimal < 8.15, "Night",
+                           ifelse(HourDecimal > 17.48, "Night", "Day")),
+      Day == "14" ~ ifelse(HourDecimal > 0 & HourDecimal < 8.18, "Night",
+                           ifelse(HourDecimal > 17.45, "Night", "Day")),
+            TRUE ~ NA  # Default value
+    ))
+```
+
+Now I have a database that I can use to do the models and figures.
+
+## Modeling
+
+Before doing the modeling I need to delete the feeding time for all days. There's a column with values TRUE when feeding so I just need to remove them
+
+```{r Feeding-}
+stf_data <- dplyr::filter(stf_data, Feeding.1h != TRUE)
+```
+
+### Mean and total activity
+
+First lets do the mean activity per Day and Night
+
+```{r MeanDayNight}
+setDT(stf_data)
+stf_mean_activity_DayNight <- stf_data[, .(DayNight_activity = mean(FlyTimeRatio, na.rm = TRUE)), 
+                                       by = .(Ring, DayNight, Setup, Species, Day)]
+stf_mean_activity_DayNight<-as.data.frame(stf_mean_activity_DayNight)
+
+hist(stf_mean_activity_DayNight$DayNight_activity, breaks = 1800)
+```
+
+Now let's calculate the mean activity per day
+
+```{r MeanTotal}
+stf_mean_activity_Total<-stf_data[, .(DayNight_activity = mean(FlyTimeRatio, na.rm = TRUE)), 
+                                  by = .(Ring, Setup, Species, Day)]
+stf_mean_activity_Total<-as.data.frame(stf_mean_activity_Total)
+
+hist(stf_mean_activity_Total$DayNight_activity, breaks=1800)
+```
+
+### Model 1: Experiment \* DayNight
+
+The first random effect lineal model is the interaction between the experiment (control vs treatment) during day and night
+
+```{r mod1}
+stf_mod_Exp_meanDayNight<- lmer(DayNight_activity ~ DayNight * Setup * Day + 
+                                  (1|Ring), 
+                                data = stf_mean_activity_DayNight, 
+                                na.action = na.exclude)
+```
+
+To check the model fits some assumptions
+
+```{r check_mod1, fig.width=7, fig.height=9}
+check_model(stf_mod_Exp_meanDayNight)
+```
+
+And the summary of the model
+
+```{r summary_mod1}
+summary(stf_mod_Exp_meanDayNight)
+```
+
+Lets calculate the means and the confidence intervals for the model
+
+```{r CI_mod1}
+stf_mean_mod1<-emmeans(stf_mod_Exp_meanDayNight, ~DayNight * Setup * Day) 
+stf_mean_mod1
+```
+
+Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
+
+```{r pairs_mod1}
+pairs(stf_mean_mod1)
+```
+
+Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
+
+```{r grid_mod1}
+#| warning: false 
+stf_gr_mod1 <- ref_grid(stf_mod_Exp_meanDayNight, 
+                        cov.keep=c("DayNight","Setup","Day")) 
+stf_gr_emmeans_mod1<-as.data.frame(emmeans(stf_gr_mod1, 
+                                           specs = c("DayNight","Setup", "Day"),
+                                           at = list(Days = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14)),
+                                           level=0.95))
+```
+
+```{r pairs_table_mod1}
+stf_pval_mod1<-emmeans(stf_gr_mod1, specs = c("DayNight","Setup", "Day"),
+                       at = list(Days = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14)),
+                       level=0.95)
+stf_pval_mod1_df<-as.data.frame(pairs(stf_pval_mod1, adjust=NULL))
+```
+
+Now, to define the information we will use to plot the data
+
+```{r db_mod1}
+stf_mean_mod1<- as.data.frame(stf_mean_mod1) 
+stf_raw_Exp_DayNight_MeanData <- stf_mean_activity_DayNight[
+  c("DayNight", "Setup", "DayNight_activity", "Day")]  
+#Merge the columns choosen with the data from the model
+stf_plot_data_mod1 <- merge(stf_gr_emmeans_mod1, stf_raw_Exp_DayNight_MeanData, 
+                            by = c("DayNight", "Setup","Day")) 
+```
+
+And, finally plotting this model
+
+```{r plot_mod1}
+#| warning: false 
+ggplot(stf_gr_emmeans_mod1, aes(x = Day, y = emmean, color = DayNight)) +   
+  geom_jitter(data = stf_plot_data_mod1, aes(x = Day, y = DayNight_activity), 
+              color="lightgray") +   
+  geom_point() +   
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,  size=1)+ 
+  geom_line()+
+  facet_grid(vars(Setup))+   
+  labs(x = "Day", y = "Estimated Marginal Mean") +   
+  ggtitle("Daily activity across the experiment per Setup")+   
+  theme_bw()
+```
+
+Lets chech the r2
+
+```{r}
+model_performance(stf_mod_Exp_meanDayNight) 
+
+```
+
+### Model 3: Experiment
+
+The second random effect lineal model is the interaction between the experiment (control vs treatment) during day and night and breeding distribution
+
+```{r mod3}
+stf_mod_Exp_meanTotal<- lmer(DayNight_activity ~ Setup * Day + (1|Ring),                        
+                         data = stf_mean_activity_Total, na.action = na.exclude)
+```
+
+To check the model fits some assumptions
+
+```{r check_mod3, fig.width=7, fig.height=9}
+check_model(stf_mod_Exp_meanTotal)
+```
+
+And the summary of the model
+
+```{r summary_mod3}
+summary(stf_mod_Exp_meanTotal)
+```
+
+Lets calculate the means and the confidence intervals for the model
+
+```{r CI_mod3}
+stf_total_mod3<-emmeans(stf_mod_Exp_meanTotal, ~Setup * Day) 
+stf_total_mod3
+```
+
+Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
+
+```{r pairs_mod3}
+pairs(stf_total_mod3)
+```
+
+Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
+
+```{r grid_mod3}
+stf_gr_mod3 <- ref_grid(stf_mod_Exp_meanTotal, cov.keep=c("Setup", "Day"))
+stf_gr_emmeans_mod3<-as.data.frame(emmeans(stf_gr_mod3, specs = c("Setup", "Day"), 
+      level=0.95))
+```
+
+```{r}
+stf_pval_mod3<-emmeans(stf_gr_mod3, specs = c("Setup", "Day"),
+                       at = list(Days = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14)),
+                       level=0.95)
+stf_pval_mod3_df<-as.data.frame(pairs(stf_pval_mod3, adjust=NULL))
+```
+
+Now, to define the information we will use to plot the data
+
+```{r db_mod3}
+stf_total_mod3<-as.data.frame(stf_total_mod3) 
+stf_raw_Exp_DayNight_TotalData <- stf_mean_activity_Total[c("Setup", "Day", "DayNight_activity")] 
+stf_plot_data_mod3 <- merge(stf_gr_emmeans_mod3, stf_raw_Exp_DayNight_TotalData, 
+                        by = c("Setup", "Day"))
+```
+
+And, finally plotting this model
+
+```{r plot_mod3}
+#| warning: false   
+ggplot(stf_gr_emmeans_mod3, aes(x = Day, y = emmean, color=Setup)) +   
+  geom_jitter(data = stf_plot_data_mod3, aes(x = Day, y = DayNight_activity),
+              color="lightgray") +  
+  geom_point() +   
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5, size=1)+  
+  geom_line()+
+  labs(x = "Day", y = "Estimated Marginal Mean") +  
+  ggtitle("Activity per experiment")+  
+  theme_bw()
+```
+
+Lets chech the r2
+
+```{r}
+model_performance(stf_mod_Exp_meanTotal) 
+
+```
+
+### Model comparison
+
+To check each model against a null model and then a comparison between all of the models all together. First lets define the null models, the null models are the same as the models proposed above (only using the ones corrected by species), but without using the factors, instead those are going to be 1.
+
+```{r null_mods}
+null_mod1_R<-lmer(DayNight_activity ~ 1 + (1|Ring), 
+                data = stf_mean_activity_DayNight, na.action = na.exclude)
+anova(stf_mod_Exp_meanDayNight, null_mod1_R, test="LTR")
+```
+
+```{r}
+null_mod3_R<-lmer(DayNight_activity ~ 1 + (1|Ring),
+                data = stf_mean_activity_Total, na.action = na.exclude)
+anova(stf_mod_Exp_meanTotal, null_mod3_R, test="LTR")
+```
+
+## Actograms
+
+To produce the actograms first I need to organize the data again.
+
+All the plots here are produced as a modified version of the function "actogram in the"digiRythm" package
+
+```{r stf_actogram_raw}
+stf_data_actogram_raw<-as.data.frame(stf_data) #use stf_data as input 
+```
+
+Set the "Activity" column as the activity that is going to be plotted
+
+```{r alias_activity}
+stf_activity = names(stf_data_actogram_raw)[7]
+stf_activity_alias<-"activity"
+```
+
+Set the date and time as columns in the data
+
+```{r actogram_datetime}
+stf_data_actogram_raw <- data_actogram_raw %>%  
+   mutate(date = as_date(datetime),      
+          time = format(datetime, format = "%H:%M", tz = "CET")) #set date and time columns}
+```
+
+And the actogram can be plotted now
+
+```{r plot_w1, fig.width=10, fig.height=10}
+#| warning: false  
+stf_data_actogram_raw$time <- as.character(stf_data_actogram_raw$time)
+
+ggplot(stf_data_actogram_raw, aes(x = time, y = date, fill = !!sym(activity))) + 
+  geom_tile() +   
+  facet_rep_wrap(vars(Ring)) +
+  xlab("Time") +  
+  ylab("Date") +  
+  scale_fill_gradient(name = activity_alias, 
+                      low = "lightcyan", high = "darkblue", na.value = "#FFFFFF") +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5),     
+        text = element_text(size = 15, color = "black"),    
+        axis.text = element_text(color = "black"),      
+        panel.background = element_rect(fill = "white"),    
+        axis.line = element_line(size = 0.5)) +  
+  scale_x_discrete(breaks = c("02:10", "06:10", "10:10", "14:10", "18:10", "22:10"))
+```
