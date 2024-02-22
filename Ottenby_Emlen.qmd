@@ -6,3 +6,173 @@ editor: visual
 ---
 
 ## 
+
+```{r}
+#| output: FALSE 
+setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database")
+```
+
+For running this script you need the following packages installed in your workspace:
+
+```{r libraries, output=FALSE, include=TRUE, warning=FALSE}
+library(usethis) #To use github
+library(knitr) #to use markdown
+library(circular) #to perform circular statistics
+library(ggplot2) #to do beautiful plots
+library(rmarkdown) #to use markdown
+library(quarto) #to use markdown
+library(lmerTest) #to do random effect tests
+library(cowplot)
+library(lme4) #to do random effect tests
+library(dplyr) #managing tables and organizing data
+library(janitor)
+library(tvthemes)
+library(phytools) #managing phylogenetic approaches
+library(bpnreg) #circular regression models
+library(CircStats) #some useful circular functions
+library(RSQLite) #to connect database reades
+library(data.table) #to handle tables
+library(remotes)
+library(tidyr)
+library(readr)
+library(CircStats)
+library(performance)
+library(tectonicr)
+```
+
+## Emlen funnel analysis
+
+Lets read the table with the Emlen data
+
+```{r database}
+#| output: false
+#| include: false
+Emlen_IndData<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/EmlenData_Spring2023.txt", h=T)
+```
+
+Let's change the names of the columns for the middle of the angles the sector has
+
+```{r newSectorNames}
+setnames(Emlen_IndData, old=c("S1","S2","S3","S4","S5","S6","S7","S8","S9",
+                              "S10","S11","S12","S13","S14","S15","S16","S17",
+                              "S18","S19","S20","S21","S22","S23","S24"), 
+         new = c("7.5","22.5","37.5","52.5","67.5","82.5","97.5","112.5",
+                 "127.5","142.5","157.5","172.5","187.5","202.5","217.5",
+                 "232.5","247.5","262.5","277.5","292.5","307.5","322.5",
+                 "337.5","352.5"), skip_absent=TRUE)
+
+```
+
+To add an identification to every Emlen experiment, because there are more than one experiment per ring
+
+```{r DirectionTable}
+Emlen_IndData<-tibble::rowid_to_column(Emlen_IndData, "Identificator")
+```
+
+Let's define two functions that are going to be helpful handling circular data because there's functions that need the data input in degrees and others in radians. With this functions I can change it easily
+
+```{r DegRad_Functions}
+deg2rad <- function(deg) {(deg * pi) / (180)} #converts degrees to radians.
+rad2deg <- function(rad) {(rad * 180) / (pi)} #converts radians to degrees.
+```
+
+Lets organize the dates in the table
+
+```{r Weeks}
+Emlen_IndData$Date<-lubridate::dmy(Emlen_IndData$Date)
+Emlen_IndData <- Emlen_IndData %>%
+  mutate(Week = case_when(
+    between(Date, as.Date("2023-04-20"), as.Date("2023-04-26")) ~ 1,
+    between(Date, as.Date("2023-04-28"), as.Date("2023-05-04")) ~ 2,
+    between(Date, as.Date("2023-05-08"), as.Date("2023-05-14")) ~ 3,
+    between(Date, as.Date("2023-05-16"), as.Date("2023-05-22")) ~ 4,
+    between(Date, as.Date("2023-05-25"), as.Date("2023-05-31")) ~ 5,
+    TRUE ~ 6 # Defining values for each week with date intervals
+  ))
+```
+
+This code makes the reppetition of the angles to a long format to being able to analyze the data after
+
+```{r data_long}
+datalong_EmlenInd<-pivot_longer( #makes it a frequency to rep after
+  Emlen_IndData,
+  cols=c("7.5","22.5","37.5","52.5","67.5","82.5","97.5","112.5","127.5",
+         "142.5","157.5","172.5","187.5","202.5","217.5","232.5","247.5",
+         "262.5","277.5","292.5","307.5","322.5","337.5","352.5"),
+  names_to="sector",
+  values_to="count")
+```
+
+Lets save the all the numbers in one variable to make a new table with the
+
+```{r uniqueIdent}
+uniqueValues_ID<-unique(datalong_EmlenInd$Identificator)
+```
+
+This is a really important piece of code because I'm going to store the statistics results for each individual experiment
+
+```{r Results_df}
+#| warning: false
+results_df <- data.frame(Identificator = uniqueValues_ID,   #create an empty dataframe to store results
+                         test_statistic = numeric(length(uniqueValues_ID)),
+                         p_value = numeric(length(uniqueValues_ID)),
+                         Mean = numeric(length(uniqueValues_ID)),
+                         Lower_CI = numeric(length(uniqueValues_ID)),
+                         Upper_CI = numeric(length(uniqueValues_ID)))
+
+# Loop through unique identifiers
+for (i in uniqueValues_ID) {
+  subset_data <- subset(datalong_EmlenInd, Identificator == i) #subsets data for each identificator/each entry in the database
+  IndData <- as.data.frame(as.numeric(unlist(subset_data)))
+  IndData <- na.omit(IndData)
+  longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count)) #repeats the degrees the times we counted already
+  conf_interval <- confidence_interval(longdata, conf.level = 0.95, axial = FALSE)
+  longdata <- deg2rad(longdata)  # Convert to radians
+  rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
+  test_statistic <- rayleigh_test$statistic
+  p_value <- rayleigh_test$p.value
+  MeanDir<- mean.circular(longdata)
+  
+  
+  # Convert the mean direction from radians to degrees and correct negative values
+  MeanDir_deg <- rad2deg(MeanDir)  # Convert to degrees
+  if (MeanDir_deg < 0) {
+    MeanDir_deg <- 360 + MeanDir_deg  # Wrap around negative values
+  }
+  
+  # Assign results to the correct rows
+  row_index <- which(results_df$Identificator == i)
+  results_df$test_statistic[row_index] <- test_statistic
+  results_df$p_value[row_index] <- p_value
+  results_df$Mean[row_index]<- MeanDir_deg
+  results_df$Lower_CI[row_index]<- conf_interval$conf.interval[1]
+  results_df$Upper_CI[row_index]<- conf_interval$conf.interval[2]
+}
+
+```
+
+We have the results per identificator. Now we merge both tables to have all the data associated to each one of the rings
+
+```{r mergedEmlen}
+mergedEmlen<-merge(results_df, Emlen_IndData, by = "Identificator") #merge both dataframes by identificator
+```
+
+To check unique values and how many data points a ring has to perform a paired test later
+
+```{r uniqueValues_Ring}
+uniqueValues_Ring<-unique(mergedEmlen$Ring)
+length(uniqueValues_Ring)
+```
+
+to see how many times a ring occours in the dataframe (this is because we need to have the same size if we want to do a paired test)
+
+```{r occurrences}
+occurrences <- mergedEmlen %>% count(Ring) 
+print(occurrences)
+```
+
+Now we can choose the columns to make the tests
+
+```{r EmlenData_ForTest}
+EmlenData_ForTest<- dplyr::select(mergedEmlen, c("Identificator", "test_statistic","p_value", "Mean", "Lower_CI", "Upper_CI", "Species", "Treatment","Ring","BreedingDistribution", "Week"))
+```
