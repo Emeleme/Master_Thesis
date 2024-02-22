@@ -38,6 +38,7 @@ library(readr)
 library(CircStats)
 library(performance)
 library(tectonicr)
+library(wesanderson)
 ```
 
 ## Emlen funnel analysis
@@ -174,5 +175,193 @@ print(occurrences)
 Now we can choose the columns to make the tests
 
 ```{r EmlenData_ForTest}
-EmlenData_ForTest<- dplyr::select(mergedEmlen, c("Identificator", "test_statistic","p_value", "Mean", "Lower_CI", "Upper_CI", "Species", "Treatment","Ring","BreedingDistribution", "Week"))
+EmlenData_ForTest<- dplyr::select(mergedEmlen, c("Identificator",
+                                                 "test_statistic","p_value", 
+                                                 "Mean", "Lower_CI", "Upper_CI",
+                                                 "Species", "Treatment","Ring",
+                                                 "BreedingDistribution", "Week"))
 ```
+
+```{r}
+EmlenData_ForTest$y<-0.95
+```
+
+
+And now divide them for treatment
+
+```{r TreatmentSplit}
+Emlen_capture<-filter(EmlenData_ForTest, Treatment=="capture") #just capture
+Emlen_control<-filter(EmlenData_ForTest, Treatment=="control") #just capture
+Emlen_treatment<-filter(EmlenData_ForTest, Treatment=="treatment") #just 24h treatment
+
+```
+
+Plot the mean of all individuals in the treatments
+
+```{r}
+plot(as.circular(Emlen_capture$Mean, type="angles", units="degrees", template="geographic", zero=0))
+r_cap <- rho.circular(Emlen_capture$Mean, na.rm = FALSE)
+arrows.circular(mean.circular(Emlen_capture$Mean), y=r_cap, length=0.1)
+conf_interval_cap <- confidence_interval(Emlen_capture$Mean, conf.level = 0.95, axial = FALSE)
+
+plot(as.circular(Emlen_control$Mean, type="angles", units="degrees", template="geographic", zero=0))
+r_con <- rho.circular(Emlen_control$Mean, na.rm = FALSE)
+arrows.circular(mean.circular(Emlen_control$Mean), y=r_con, length=0.1)
+
+plot(as.circular(Emlen_treatment$Mean, type="angles", units="degrees", template="geographic", zero=0))
+r_tre <- rho.circular(Emlen_treatment$Mean, na.rm = FALSE)
+arrows.circular(mean.circular(Emlen_treatment$Mean), y=r_tre, length=0.1)
+
+```
+To calculate the mean for each species we can do the same as we did before for each individual
+
+```{r}
+#| warning: false
+EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
+                                                 "Mean", "Species", "Treatment","Ring",
+                                                 "BreedingDistribution", "Week"))
+
+
+uniqueValues_Treat<-unique(EmlenData_sp_Mean$Treatment)
+Results_treat <- expand.grid(Treatment = uniqueValues_Treat,
+                             Species=unique(EmlenData_sp_Mean$Species))
+Results_treat$test_statistic <- NA
+Results_treat$p_value <- NA
+Results_treat$Mean <- NA
+Results_treat$Lower_CI <- NA
+Results_treat$Upper_CI <- NA
+
+# Loop through unique identifiers
+for (j in uniqueValues_Treat) {
+  subset_data_t <- subset(EmlenData_sp_Mean, Treatment == j) #subsets data for each identificator/each entry in the database
+  TreatData <- as.data.frame(as.numeric(unlist(subset_data_t)))
+  uniqueValues_sp<-unique(TreatData$Species)
+  
+  #create an empty dataframe to store results
+  results_df_sp <- data.frame(Species = uniqueValues_sp,   
+                         test_statistic = numeric(length(uniqueValues_sp)),
+                         p_value = numeric(length(uniqueValues_sp)),
+                         Mean = numeric(length(uniqueValues_sp)),
+                         Lower_CI = numeric(length(uniqueValues_sp)),
+                         Upper_CI = numeric(length(uniqueValues_sp)))
+  for (i in uniqueValues_sp) {
+    subset_data <- subset(TreatData, Species == i) #subsets data for each identificator/each entry in the database
+    IndData <- as.data.frame(as.numeric(unlist(subset_data)))
+    IndData <- na.omit(IndData)
+    longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count)) #repeats the degrees the times we counted already
+    conf_interval <- confidence_interval(longdata, conf.level = 0.95, axial = FALSE)
+    longdata <- deg2rad(longdata)  # Convert to radians
+    rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
+    test_statistic <- rayleigh_test$statistic
+    p_value <- rayleigh_test$p.value
+    MeanDir<- mean.circular(longdata)
+    
+    
+    # Convert the mean direction from radians to degrees and correct negative values
+    MeanDir_deg <- rad2deg(MeanDir)  # Convert to degrees
+    if (MeanDir_deg < 0) {
+      MeanDir_deg <- 360 + MeanDir_deg  # Wrap around negative values
+    }
+    
+    # Assign results to the correct rows
+    #row_index <- Results_treat$Treatment == j & Results_treat$Species == i
+    row_index <- which(results_df_sp$Species == i)
+    row_index <- row_index[!is.na(row_index)]
+    results_df_sp$test_statistic[row_index] <- test_statistic
+    results_df_sp$p_value[row_index] <- p_value
+    results_df_sp$Mean[row_index]<- MeanDir_deg
+    results_df_sp$Lower_CI[row_index]<- conf_interval$conf.interval[1]
+    results_df_sp$Upper_CI[row_index]<- conf_interval$conf.interval[2]
+  }
+}
+View(Results_treat)
+```
+
+```{r}
+#| warning: false
+
+# Calculate the results for each combination of Treatment and Species
+# datalong_EmlenInd_sp <- datalong_EmlenInd %>%
+#   group_by(Identificator, sector) %>% 
+#   slice(rep(1:n(), each = count)) %>%
+#   dplyr::select(-count)
+
+EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
+                                                 "Mean", "Species", "Treatment","Ring",
+                                                 "BreedingDistribution", "Week"))
+
+Results_treat <- EmlenData_sp_Mean %>%
+  group_by(Treatment, Species) %>%
+  summarize(
+    n = n(),
+    Lower_CI = ifelse(n() > 1 & confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[1] > 360, confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[1] - 360, confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[1]),
+    Upper_CI = ifelse(n() > 1 & confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[2] > 360, confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[2] - 360, confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[2]),
+    test_statistic = ifelse(n() > 1, rayleigh_test(deg2rad(Mean))$statistic, NA),
+    p_value = ifelse(n() > 1, rayleigh_test(deg2rad(Mean))$p.value, NA),
+# 
+# 
+#      Lower_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[1] else NA,
+#     Upper_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[2] else NA,
+#     test_statistic = rayleigh_test(deg2rad(Mean))$statistic,
+#     p_value = rayleigh_test(deg2rad(Mean))$p.value,
+    Mean = mean.circular(deg2rad(Mean), na.rm = TRUE)
+  )
+
+
+# if (Results_treat$Mean < 0) {
+#       Results_treat$Mean <- 360 + Results_treat$Mean  # Wrap around negative values
+#     }
+
+#View the results
+View(Results_treat)
+
+```
+
+
+
+
+
+```{r AllInd_sp}
+ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
+  geom_point(size = 1.8, alpha=1, shape=21, stroke = 0.5, colour = "black", aes(fill=factor(Species)))+
+  coord_polar() +
+  scale_x_continuous("", limits=c(0,360),
+                      breaks=seq(0,360-0.001,by=90),
+                      labels=c("N","E","S","W")) +
+         scale_y_continuous("",limits=c(0,1), breaks=1)+
+  geom_hline(yintercept=1)+
+  #theme_minimal()+
+  theme(panel.background = element_rect(fill = NA),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())+
+  ggtitle("Circular Plot") +  
+  ylab("")+ 
+  xlab("")+
+  facet_wrap(Species~Treatment)
+
+```
+```{r AllInds}
+ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
+  geom_point(size = 3, alpha=1/2)+
+  coord_polar() +
+  scale_x_continuous("", limits=c(0,360),
+                      breaks=seq(0,360-0.001,by=90),
+                      labels=c("N","E","S","W")) +
+         scale_y_continuous("",limits=c(0,1), breaks=1)+
+  geom_hline(yintercept=1)+
+  #theme_minimal()+
+  theme(panel.background = element_rect(fill = NA),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())+
+  ggtitle("Circular Plot") +  
+  ylab("")+ 
+  xlab("")+
+  facet_wrap(vars(Ring))
+
+```
+
+
+
+
