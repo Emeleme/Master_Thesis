@@ -36,7 +36,7 @@ The research question we are aiming to answer is: Does the migratory behaviour o
 
 ```{r}
 #| output: FALSE
-setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal Ecology 2022-2024/Tesis/Database")
+setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database")
 ```
 
 For running this script you need the following packages installed in your workspace:
@@ -118,7 +118,7 @@ x an y values for both angles
 
 ```{r "Basic trigonometric calculations for emlen funnels"}
 
-EmlenFunnels_RawData<-read.table("E:\\Users\\mlmah\\OneDrive\\Documentos\\MLME\\Maestria\\Animal Ecology 2022-2024\\Tesis\\Database\\EmlenData_Spring2023.txt", h=TRUE) #upload your data 
+EmlenFunnels_RawData<-read.table("E:\\Users\\mlmah\\OneDrive\\Documentos\\MLME\\Maestria\\Animal_Ecology_2022_2024\\Tesis\\Database\\EmlenData_Spring2023.txt", h=TRUE) #upload your data 
 EmlenFunnel<- dplyr::select(EmlenFunnels_RawData, c("Ring","S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S15","S16","S17","S18","S19","S20","S21","S22","S23","S24","TotalScratches")) #Make a new table using selected columns. The columns we are going to use are the identity of the bird, all 24 sectors and the total number of scratches in the funnel. MAKE SURE TO CHANGE THE COLUMN NAMES TO MATCH WITH YOUR TABLE
 
 sectors<-as.data.frame(dplyr::select(EmlenFunnels_RawData, c("S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S15","S16","S17","S18","S19","S20","S21","S22","S23","S24")))
@@ -274,9 +274,9 @@ In this section (I need to tidy up the text and the comment son the code), I wil
 The code needs some tidy as well
 
 ```{r, include=TRUE, warning=FALSE, message = FALSE}
-setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal Ecology 2022-2024/Tesis/Database")
+setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database")
 #read .csv data file and assign it a name
-Emlen_IndData_2<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal Ecology 2022-2024/Tesis/Database/EmlenData_Spring2023.txt", h=T)
+Emlen_IndData_2<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/EmlenData_Spring2023.txt", h=T)
 
 #check data
 names(Emlen_IndData_2) #returns names of the columns
