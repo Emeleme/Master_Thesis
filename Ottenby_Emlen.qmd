@@ -400,3 +400,19 @@ Emlen_hotelling <- merge(Emlen_capture_ID, Emlen_control_ID, by="Ring")
 %>%
               merge(Emlen_treatment_ID, by="Ring")
 ```
+
+ENCONTRAR COMO UNIR LAS TABLAS PARA HACER EL HOTTELING
+
+HACER EL CAMBIO ANGULAR ENTRE CONTROL Y CAPTURE, CONTROL Y TREATMENT Y CAPTURE Y TREATMENT
+
+PLOTEAR EL CAMBIO ANGULAR
+
+GLMER PARA:
+
+counts \~ radians + (1\|Ring) + (1\|Species)
+
+counts \~ radians \* Treatment + (1\|Ring) + (1\|Species)
+
+counts \~ radians \* Treatment \* BreedingDistribution + (1\|Ring) + (1\|Species)
+
+ARMAR EL QUARTO PARA STF. LOS MODELOS DE STF VAN CON DAY COMO FACTOR
