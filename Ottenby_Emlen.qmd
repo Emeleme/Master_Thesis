@@ -77,7 +77,19 @@ deg2rad <- function(deg) {(deg * pi) / (180)} #converts degrees to radians.
 rad2deg <- function(rad) {(rad * 180) / (pi)} #converts radians to degrees.
 ```
 
-Lets organize the dates in the table
+Later Im gonna need to adjust some negative values and some values above 360 si I defined this function for it:
+
+```{r adjust360_fun}
+adjust_360 <- function(x) {
+  if (is.numeric(x)) {
+    x <- ifelse(!is.na(x) & x < 0, x + 360, x)
+    x <- ifelse(!is.na(x) & x > 360, x - 360, x)
+  }
+  return(x)
+}
+```
+
+Now, lets organize the dates in the table
 
 ```{r Weeks}
 Emlen_IndData$Date<-lubridate::dmy(Emlen_IndData$Date)
@@ -152,6 +164,12 @@ for (i in uniqueValues_ID) {
 
 ```
 
+Before merging anything, there are some negative values and some values above 360, we can adjust them with the function defined earlier:
+
+```{r results360adj}
+results_df <- as.data.frame(results_df %>% mutate_all(adjust_360))
+```
+
 We have the results per identificator. Now we merge both tables to have all the data associated to each one of the rings
 
 ```{r mergedEmlen}
@@ -182,23 +200,22 @@ EmlenData_ForTest<- dplyr::select(mergedEmlen, c("Identificator",
                                                  "BreedingDistribution", "Week"))
 ```
 
-```{r}
+```{r set_y}
 EmlenData_ForTest$y<-0.95
 ```
-
 
 And now divide them for treatment
 
 ```{r TreatmentSplit}
 Emlen_capture<-filter(EmlenData_ForTest, Treatment=="capture") #just capture
-Emlen_control<-filter(EmlenData_ForTest, Treatment=="control") #just capture
+Emlen_control<-filter(EmlenData_ForTest, Treatment=="control") #just control
 Emlen_treatment<-filter(EmlenData_ForTest, Treatment=="treatment") #just 24h treatment
 
 ```
 
 Plot the mean of all individuals in the treatments
 
-```{r}
+```{r simple_plots}
 plot(as.circular(Emlen_capture$Mean, type="angles", units="degrees", template="geographic", zero=0))
 r_cap <- rho.circular(Emlen_capture$Mean, na.rm = FALSE)
 arrows.circular(mean.circular(Emlen_capture$Mean), y=r_cap, length=0.1)
@@ -213,78 +230,11 @@ r_tre <- rho.circular(Emlen_treatment$Mean, na.rm = FALSE)
 arrows.circular(mean.circular(Emlen_treatment$Mean), y=r_tre, length=0.1)
 
 ```
-To calculate the mean for each species we can do the same as we did before for each individual
 
-```{r}
+To calculate the mean for each species we can do the same as we did before for each individual but with other method
+
+```{r Results_treat}
 #| warning: false
-EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
-                                                 "Mean", "Species", "Treatment","Ring",
-                                                 "BreedingDistribution", "Week"))
-
-
-uniqueValues_Treat<-unique(EmlenData_sp_Mean$Treatment)
-Results_treat <- expand.grid(Treatment = uniqueValues_Treat,
-                             Species=unique(EmlenData_sp_Mean$Species))
-Results_treat$test_statistic <- NA
-Results_treat$p_value <- NA
-Results_treat$Mean <- NA
-Results_treat$Lower_CI <- NA
-Results_treat$Upper_CI <- NA
-
-# Loop through unique identifiers
-for (j in uniqueValues_Treat) {
-  subset_data_t <- subset(EmlenData_sp_Mean, Treatment == j) #subsets data for each identificator/each entry in the database
-  TreatData <- as.data.frame(as.numeric(unlist(subset_data_t)))
-  uniqueValues_sp<-unique(TreatData$Species)
-  
-  #create an empty dataframe to store results
-  results_df_sp <- data.frame(Species = uniqueValues_sp,   
-                         test_statistic = numeric(length(uniqueValues_sp)),
-                         p_value = numeric(length(uniqueValues_sp)),
-                         Mean = numeric(length(uniqueValues_sp)),
-                         Lower_CI = numeric(length(uniqueValues_sp)),
-                         Upper_CI = numeric(length(uniqueValues_sp)))
-  for (i in uniqueValues_sp) {
-    subset_data <- subset(TreatData, Species == i) #subsets data for each identificator/each entry in the database
-    IndData <- as.data.frame(as.numeric(unlist(subset_data)))
-    IndData <- na.omit(IndData)
-    longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count)) #repeats the degrees the times we counted already
-    conf_interval <- confidence_interval(longdata, conf.level = 0.95, axial = FALSE)
-    longdata <- deg2rad(longdata)  # Convert to radians
-    rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
-    test_statistic <- rayleigh_test$statistic
-    p_value <- rayleigh_test$p.value
-    MeanDir<- mean.circular(longdata)
-    
-    
-    # Convert the mean direction from radians to degrees and correct negative values
-    MeanDir_deg <- rad2deg(MeanDir)  # Convert to degrees
-    if (MeanDir_deg < 0) {
-      MeanDir_deg <- 360 + MeanDir_deg  # Wrap around negative values
-    }
-    
-    # Assign results to the correct rows
-    #row_index <- Results_treat$Treatment == j & Results_treat$Species == i
-    row_index <- which(results_df_sp$Species == i)
-    row_index <- row_index[!is.na(row_index)]
-    results_df_sp$test_statistic[row_index] <- test_statistic
-    results_df_sp$p_value[row_index] <- p_value
-    results_df_sp$Mean[row_index]<- MeanDir_deg
-    results_df_sp$Lower_CI[row_index]<- conf_interval$conf.interval[1]
-    results_df_sp$Upper_CI[row_index]<- conf_interval$conf.interval[2]
-  }
-}
-View(Results_treat)
-```
-
-```{r}
-#| warning: false
-
-# Calculate the results for each combination of Treatment and Species
-# datalong_EmlenInd_sp <- datalong_EmlenInd %>%
-#   group_by(Identificator, sector) %>% 
-#   slice(rep(1:n(), each = count)) %>%
-#   dplyr::select(-count)
 
 EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
                                                  "Mean", "Species", "Treatment","Ring",
@@ -305,25 +255,16 @@ View(Results_treat)
 
 To make the negative values positive, I added 360. The values that are above 360 I substracted 360
 
-```{r}
-adjust_360 <- function(x) {
-  if (is.numeric(x)) {
-    x <- ifelse(!is.na(x) & x < 0, x + 360, x)
-    x <- ifelse(!is.na(x) & x > 360, x - 360, x)
-  }
-  return(x)
-}
-
-# Apply the function to all columns
+```{r res_treatAdj}
 Results_treat <- as.data.frame(Results_treat %>% mutate_all(adjust_360))
 ```
 
-
-
+To plot each species per treatment with the mean value for the species and the confidence intervals for each species
 
 ```{r AllInd_sp}
 ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
-  geom_point(size = 1.8, alpha=1, shape=21, stroke = 0.5, colour = "black", aes(fill=factor(Species)))+
+  geom_point(size = 1.8, alpha=1, shape=21, stroke = 0.5, colour = "black", 
+             aes(fill=factor(Species)))+
   coord_polar() +
   scale_x_continuous("", limits=c(0,360),
                       breaks=seq(0,360-0.001,by=90),
@@ -346,49 +287,116 @@ ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
   facet_wrap(Species~Treatment)
 
 ```
+
+To plot each individual ring witht the mean value and the confidence intervals
+
 ```{r AllInds}
-ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
-  geom_point(size = 3, alpha=1/2)+
-  coord_polar() +
-  scale_x_continuous("", limits=c(0,360),
-                      breaks=seq(0,360-0.001,by=90),
-                      labels=c("N","E","S","W")) +
-         scale_y_continuous("",limits=c(0,1), breaks=1)+
-  geom_hline(yintercept=1)+
-  theme(panel.background = element_rect(fill = NA),
-        axis.title.y = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank())+
-  ggtitle("Circular Plot") +  
-  ylab("")+ 
-  xlab("")+
-  facet_wrap(vars(Ring))
-
-
-ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
-  geom_point(size = 1.8, alpha=1, shape=21, stroke = 0.5, colour = "black", aes(fill=factor(Species)))+
-  coord_polar() +
-  scale_x_continuous("", limits=c(0,360),
-                      breaks=seq(0,360-0.001,by=90),
-                      labels=c("N","E","S","W")) +
-         scale_y_continuous("",limits=c(0,1), breaks=1)+
-  geom_hline(yintercept=1)+
-  #theme_minimal()+
-  geom_segment(data=results_df, 
-               mapping=aes(y = 0, xend = Mean, yend = test_statistic),
-                  arrow = arrow(type="closed",ends="last",length=unit(2,"mm")), color="black", size=0.7)+
-  geom_vline(data=results_df, aes(xintercept = Lower_CI))+
-  geom_vline(data=results_df, aes(xintercept = Upper_CI))+
-  theme(panel.background = element_rect(fill = NA),
-        axis.title.y = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks.y = element_blank())+
-  ggtitle("Circular Plot") +  
-  ylab("")+ 
-  xlab("")+
-  facet_wrap(vars(Ring))
+# ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
+#   geom_point(size = 3, alpha=1/2)+
+#   coord_polar() +
+#   scale_x_continuous("", limits=c(0,360),
+#                       breaks=seq(0,360-0.001,by=90),
+#                       labels=c("N","E","S","W")) +
+#          scale_y_continuous("",limits=c(0,1), breaks=1)+
+#   geom_hline(yintercept=1)+
+#   theme(panel.background = element_rect(fill = NA),
+#         axis.title.y = element_blank(),
+#         axis.text.y = element_blank(),
+#         axis.ticks.y = element_blank())+
+#   ggtitle("Circular Plot") +  
+#   ylab("")+ 
+#   xlab("")+
+#   facet_wrap(vars(Ring))
+# 
+# 
+# ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
+#   geom_point(size = 1.8, alpha=1, shape=21, stroke = 0.5, colour = "black", 
+#              aes(fill=factor(Species)))+
+#   coord_polar() +
+#   scale_x_continuous("", limits=c(0,360),
+#                       breaks=seq(0,360-0.001,by=90),
+#                       labels=c("N","E","S","W")) +
+#          scale_y_continuous("",limits=c(0,1), breaks=1)+
+#   geom_hline(yintercept=1)+
+#   #theme_minimal()+
+#   geom_segment(data=results_df, 
+#                mapping=aes(y = 0, xend = Mean, yend = test_statistic),
+#                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")), color="black", size=0.7)+
+#   geom_vline(data=results_df, aes(xintercept = Lower_CI))+
+#   geom_vline(data=results_df, aes(xintercept = Upper_CI))+
+#   theme(panel.background = element_rect(fill = NA),
+#         axis.title.y = element_blank(),
+#         axis.text.y = element_blank(),
+#         axis.ticks.y = element_blank())+
+#   ggtitle("Circular Plot") +  
+#   ylab("")+ 
+#   xlab("")+
+#   facet_wrap(vars(Ring))
 ```
 
+### Tests
+
+#### Watson test
+
+To test whether the mean values for each group differ between groups we can do a watson test. R help documentation says:\
+Watson.williams.test assumptions are that: (1) the samples are drawn from populations with a von Mises distribution; (2) the parameter of concentration has the same value in all populations; (3) this parameter is sufficiently large (i.e. \> 1).
+
+If the assumptions are not met in the data set it is needed to do a watson.wheeler.test
+
+```{r}
+#| warning: false
+EmlenData_ForTest$Mean<-as.circular(EmlenData_ForTest$Mean, units='degrees', template='geographics', modulo="2pi")
+
+watson.wheeler.test(Mean ~ BreedingDistribution, EmlenData_ForTest)
+```
+
+#### Hotelling paired test
+
+First lets make a subset for each treatment and change the column names to something distinguishable
+
+```{r treat_subset}
+setnames(Emlen_capture, old = c("test_statistic", "p_value", "Mean", 
+                                "Lower_CI", "Upper_CI"),
+         new = c("test_statistic_capture", "p_value_capture", "Mean_capture",
+                 "Lower_CI_capture", "Upper_CI_capture"), skip_absent=TRUE)
+Emlen_capture<-dplyr::select(Emlen_capture, -c("Treatment", "Identificator"))
+
+setnames(Emlen_control, old = c("test_statistic", "p_value", "Mean", 
+                                "Lower_CI", "Upper_CI"),
+         new = c("test_statistic_control", "p_value_control", "Mean_control",
+                 "Lower_CI_control", "Upper_CI_control"), skip_absent=TRUE)
+Emlen_control<-dplyr::select(Emlen_control, -c("Treatment", "Identificator"))
+
+setnames(Emlen_treatment, old = c("test_statistic", "p_value", "Mean", 
+                                "Lower_CI", "Upper_CI"),
+         new = c("test_statistic_treatment", "p_value_treatment", 
+                 "Mean_treatment", "Lower_CI_treatment", "Upper_CI_treatment"),
+         skip_absent=TRUE)
+Emlen_treatment<-dplyr::select(Emlen_treatment, -c("Treatment", "Identificator"))
+```
+
+Now we can intersect all of the rings and make a table suitable for the hotelling test
+
+```{r common_ids}
+common_ids <- Reduce(intersect, list(Emlen_capture$Ring, Emlen_control$Ring, Emlen_treatment$Ring))
+```
+
+To retrieve the Rings that have capture, control and treatment experiments
+
+```{r Emlen_ID}
+Emlen_capture_ID <- Emlen_capture[Emlen_capture$Ring %in% common_ids, ]
+Emlen_control_ID <- Emlen_control[Emlen_control$Ring %in% common_ids, ]
+Emlen_treatment_ID <- Emlen_treatment[Emlen_treatment$Ring %in% common_ids, ]
+```
+
+And to merge a database for making the Hotelling test
+
+```{r hotelling_db}
+Emlen_hotelling <- merge(Emlen_capture_ID, Emlen_control_ID, by="Ring")
 
 
 
+
+%>%
+              merge(Emlen_treatment_ID, by="Ring")
+```
