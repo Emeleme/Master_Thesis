@@ -303,6 +303,20 @@ View(Results_treat)
 
 ```
 
+To make the negative values positive, I added 360. The values that are above 360 I substracted 360
+
+```{r}
+adjust_360 <- function(x) {
+  if (is.numeric(x)) {
+    x <- ifelse(!is.na(x) & x < 0, x + 360, x)
+    x <- ifelse(!is.na(x) & x > 360, x - 360, x)
+  }
+  return(x)
+}
+
+# Apply the function to all columns
+Results_treat <- as.data.frame(Results_treat %>% mutate_all(adjust_360))
+```
 
 
 
@@ -317,6 +331,11 @@ ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
          scale_y_continuous("",limits=c(0,1), breaks=1)+
   geom_hline(yintercept=1)+
   #theme_minimal()+
+  geom_segment(data=Results_treat, 
+               mapping=aes(y = 0, xend = Mean, yend = test_statistic),
+                  arrow = arrow(type="closed",ends="last",length=unit(2,"mm")), color="black", size=0.7)+
+  geom_vline(data=Results_treat, aes(xintercept = Lower_CI), linetype="dashed")+
+  geom_vline(data=Results_treat, aes(xintercept = Upper_CI), linetype="dashed")+
   theme(panel.background = element_rect(fill = NA),
         axis.title.y = element_blank(),
         axis.text.y = element_blank(),
@@ -336,7 +355,6 @@ ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
                       labels=c("N","E","S","W")) +
          scale_y_continuous("",limits=c(0,1), breaks=1)+
   geom_hline(yintercept=1)+
-  #theme_minimal()+
   theme(panel.background = element_rect(fill = NA),
         axis.title.y = element_blank(),
         axis.text.y = element_blank(),
@@ -346,6 +364,29 @@ ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
   xlab("")+
   facet_wrap(vars(Ring))
 
+
+ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
+  geom_point(size = 1.8, alpha=1, shape=21, stroke = 0.5, colour = "black", aes(fill=factor(Species)))+
+  coord_polar() +
+  scale_x_continuous("", limits=c(0,360),
+                      breaks=seq(0,360-0.001,by=90),
+                      labels=c("N","E","S","W")) +
+         scale_y_continuous("",limits=c(0,1), breaks=1)+
+  geom_hline(yintercept=1)+
+  #theme_minimal()+
+  geom_segment(data=results_df, 
+               mapping=aes(y = 0, xend = Mean, yend = test_statistic),
+                  arrow = arrow(type="closed",ends="last",length=unit(2,"mm")), color="black", size=0.7)+
+  geom_vline(data=results_df, aes(xintercept = Lower_CI))+
+  geom_vline(data=results_df, aes(xintercept = Upper_CI))+
+  theme(panel.background = element_rect(fill = NA),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())+
+  ggtitle("Circular Plot") +  
+  ylab("")+ 
+  xlab("")+
+  facet_wrap(vars(Ring))
 ```
 
 
