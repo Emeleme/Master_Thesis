@@ -495,3 +495,64 @@ FUN_RevTrans_pez(3.82)
 # week1_h<-paired.hotelling(week1$circular_mean, week1$Mean)
 # week2_h<-paired.hotelling(week2$circular_mean, week2$Mean)
 # week3_h<-paired.hotelling(week3$circular_mean, week3$Mean)
+
+###to do a new table with some values inside
+#| warning: false
+# EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
+#                                                  "Mean", "Species", "Treatment","Ring",
+#                                                  "BreedingDistribution", "Week"))
+# 
+# 
+# uniqueValues_Treat<-unique(EmlenData_sp_Mean$Treatment)
+# Results_treat <- expand.grid(Treatment = uniqueValues_Treat,
+#                              Species=unique(EmlenData_sp_Mean$Species))
+# Results_treat$test_statistic <- NA
+# Results_treat$p_value <- NA
+# Results_treat$Mean <- NA
+# Results_treat$Lower_CI <- NA
+# Results_treat$Upper_CI <- NA
+# 
+# # Loop through unique identifiers
+# for (j in uniqueValues_Treat) {
+#   subset_data_t <- subset(EmlenData_sp_Mean, Treatment == j) #subsets data for each identificator/each entry in the database
+#   TreatData <- as.data.frame(as.numeric(unlist(subset_data_t)))
+#   uniqueValues_sp<-unique(TreatData$Species)
+#   
+#   #create an empty dataframe to store results
+#   results_df_sp <- data.frame(Species = uniqueValues_sp,   
+#                               test_statistic = numeric(length(uniqueValues_sp)),
+#                               p_value = numeric(length(uniqueValues_sp)),
+#                               Mean = numeric(length(uniqueValues_sp)),
+#                               Lower_CI = numeric(length(uniqueValues_sp)),
+#                               Upper_CI = numeric(length(uniqueValues_sp)))
+#   for (i in uniqueValues_sp) {
+#     subset_data <- subset(TreatData, Species == i) #subsets data for each identificator/each entry in the database
+#     IndData <- as.data.frame(as.numeric(unlist(subset_data)))
+#     IndData <- na.omit(IndData)
+#     longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count)) #repeats the degrees the times we counted already
+#     conf_interval <- confidence_interval(longdata, conf.level = 0.95, axial = FALSE)
+#     longdata <- deg2rad(longdata)  # Convert to radians
+#     rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
+#     test_statistic <- rayleigh_test$statistic
+#     p_value <- rayleigh_test$p.value
+#     MeanDir<- mean.circular(longdata)
+#     
+#     
+#     # Convert the mean direction from radians to degrees and correct negative values
+#     MeanDir_deg <- rad2deg(MeanDir)  # Convert to degrees
+#     if (MeanDir_deg < 0) {
+#       MeanDir_deg <- 360 + MeanDir_deg  # Wrap around negative values
+#     }
+#     
+#     # Assign results to the correct rows
+#     #row_index <- Results_treat$Treatment == j & Results_treat$Species == i
+#     row_index <- which(results_df_sp$Species == i)
+#     row_index <- row_index[!is.na(row_index)]
+#     results_df_sp$test_statistic[row_index] <- test_statistic
+#     results_df_sp$p_value[row_index] <- p_value
+#     results_df_sp$Mean[row_index]<- MeanDir_deg
+#     results_df_sp$Lower_CI[row_index]<- conf_interval$conf.interval[1]
+#     results_df_sp$Upper_CI[row_index]<- conf_interval$conf.interval[2]
+#   }
+# }
+# View(Results_treat)
