@@ -141,6 +141,7 @@ results_df <- data.frame(Identificator = uniqueValues_ID,   #create an empty dat
                          test_statistic = numeric(length(uniqueValues_ID)),
                          p_value = numeric(length(uniqueValues_ID)),
                          Mean = numeric(length(uniqueValues_ID)),
+                         rho = numeric(length(uniqueValues_ID)),
                          Lower_CI = numeric(length(uniqueValues_ID)),
                          Upper_CI = numeric(length(uniqueValues_ID)))
 
@@ -156,6 +157,7 @@ for (i in uniqueValues_ID) {
   test_statistic <- rayleigh_test$statistic
   p_value <- rayleigh_test$p.value
   MeanDir<- mean.circular(longdata)
+  rho_val <- rho.circular(longdata)
   
   
   # Convert the mean direction from radians to degrees and correct negative values
@@ -169,6 +171,7 @@ for (i in uniqueValues_ID) {
   results_df$test_statistic[row_index] <- test_statistic
   results_df$p_value[row_index] <- p_value
   results_df$Mean[row_index]<- MeanDir_deg
+  results_df$rho[row_index]<-rho_val
   results_df$Lower_CI[row_index]<- conf_interval$conf.interval[1]
   results_df$Upper_CI[row_index]<- conf_interval$conf.interval[2]
 }
@@ -205,7 +208,7 @@ ggplot(aes(x = sector, y = count), data = datalong_EmlenInd)+
                       labels=c("N", "NE", "E", "SE", "S", "SW", "W", "NW")) +
     geom_segment(data=mergedEmlen,
                mapping=aes(y = 0, x = Mean, xend = Mean, 
-                           yend = (test_statistic*max(datalong_EmlenInd$count))),
+                           yend = (rho*max(datalong_EmlenInd$count))),
                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
                color="black", size=0.7)+
     geom_vline(data=mergedEmlen, aes(xintercept = Lower_CI), linetype="dashed")+
@@ -280,7 +283,7 @@ Now we can choose the columns to make the tests
 
 ```{r EmlenData_ForTest}
 EmlenData_ForTest<- dplyr::select(mergedEmlen, c("Identificator",
-                                                 "test_statistic","p_value", 
+                                                 "rho","p_value", 
                                                  "Mean", "Lower_CI", "Upper_CI",
                                                  "Species", "Treatment","Ring",
                                                  "BreedingDistribution", "Week"))
@@ -323,14 +326,19 @@ To calculate the mean for each species we can do the same as we did before for e
 #| warning: false
 
 EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
-                                                 "Mean", "Species", "Treatment","Ring",
-                                                 "BreedingDistribution", "Week"))
+                                                 "Mean", "Species", "Treatment"
+                                                 ,"Ring","BreedingDistribution",
+                                                 "Week"))
 Results_treat_all <- EmlenData_sp_Mean %>%
   group_by(Treatment, Species) %>%
   summarize(
     N=length(Mean),
-    Lower_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[1] else NA,
-    Upper_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[2] else NA,
+    Lower_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95,
+                                                axial = FALSE)$conf.interval[1] 
+    else NA,
+    Upper_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95,
+                                                axial = FALSE)$conf.interval[2]
+    else NA,
     test_statistic = rayleigh_test(deg2rad(Mean))$statistic,
     p_value = rayleigh_test(deg2rad(Mean))$p.value,
     Mean_avg = rad2deg(mean.circular(deg2rad(Mean))),
