@@ -701,7 +701,7 @@ Emlen_lmer_Ring_Robin <- glmer(count ~ sin(radians) + cos(radians) + (1|Ring),
                          na.action = 'na.fail', family="poisson")
 summary(Emlen_lmer_Ring_Robin)
 check_model(Emlen_lmer_Ring_Robin)
-#plot(DHARMa::simulateResiduals(Emlen_lmer_Ring_Robin)) 
+plot(DHARMa::simulateResiduals(Emlen_lmer_Ring_Robin)) 
 fam.pez <- family(Emlen_lmer_Ring_Robin)
 
 visreg(Emlen_lmer_Ring_Robin, "radians", trans = FUN_RevTrans_pez)
