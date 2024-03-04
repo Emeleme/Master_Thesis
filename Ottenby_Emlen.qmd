@@ -245,6 +245,8 @@ table(results_df$Distribution) #to know how many birds have an axial distributio
 Before merging anything, there are some negative values and some values above 360, we can adjust them with the function defined earlier:
 
 ```{r results360adj}
+#| output: false
+#| include: false
 results_df <- as.data.frame(results_df %>% mutate_all(adjust_360))
 ```
 
@@ -347,14 +349,14 @@ print(occurrences)
 I need to know which ones have less than 0.05 of p-value
 
 ```{r}
-less_alpha<-subset(mergedEmlen, p_value>0.06)
+less_alpha<-subset(mergedEmlen, p_value>0.05)
 length(less_alpha$Identificator)
 ```
 
 To delete the indentificators that don't have a significant p-value for Rayleigh test
 
 ```{r}
-mergedEmlen[!(mergedEmlen$Identificator %in% less_alpha$Identificator),]
+mergedEmlen <- subset(mergedEmlen, p_value<0.05)
 ```
 
 Now we can choose the columns to make the tests
@@ -377,12 +379,12 @@ And now divide them for treatment
 Emlen_capture<-filter(EmlenData_ForTest, Treatment=="capture") #just capture
 Emlen_control<-filter(EmlenData_ForTest, Treatment=="control") #just control
 Emlen_treatment<-filter(EmlenData_ForTest, Treatment=="treatment") #just 24h treatment
-
 ```
 
 Plot the mean of all individuals in the treatments
 
 ```{r simple_plots}
+#| warning: false
 plot(as.circular(Emlen_capture$Mean, type="angles", units="degrees", template="geographic", zero=0))
 r_cap <- rho.circular(Emlen_capture$Mean, na.rm = FALSE)
 arrows.circular(mean.circular(Emlen_capture$Mean), y=r_cap, length=0.1)
@@ -402,6 +404,8 @@ To calculate the mean for each species we can do the same as we did before for e
 
 ```{r Results_treat}
 #| warning: false
+#| output: false
+#| include: false
 
 EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
                                                  "Mean", "Species", "Treatment"
@@ -478,7 +482,13 @@ table(Results_treat_all$Distribution) #to know how many birds have an axial dist
 To make the negative values positive, I added 360. The values that are above 360 I substracted 360
 
 ```{r res_treatAdj}
-Results_treat <- as.data.frame(Results_treat_all %>% mutate_all(adjust_360))
+#| warning: false
+# Convert values outside scope to 360 modul
+Results_treat <- as.data.frame(Results_treat_all %>% mutate_all(adjust_360)) 
+#Keep only > 0.05values
+Results_treat <- subset(Results_treat,
+                               p_value < 0.05)
+#Keep only those species with higher N than 12
 Results_treat <- subset(Results_treat, N>12)
 Results_treat <- Results_treat %>% 
        rename("Mean" = "Mean_avg")
@@ -487,10 +497,16 @@ Results_treat <- Results_treat %>%
 To plot each species per treatment with the mean value for the species and the confidence intervals for each species
 
 ```{r AllInd_sp}
-#GUARDAR EN PDF PARA VERLO BONITO
-EmlenData_ForTest<- filter(EmlenData_ForTest, 
-                           Species == c("Robin","Willow_Warbler"))
-ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
+#Keep only Robins and Willys
+EmlenData_ForTest_WR<- subset(EmlenData_ForTest, 
+                               Species == "Robin" | Species == "Willow_Warbler")
+
+#Keep only the values higher than 0.05
+# EmlenData_ForTest_WR <- subset(EmlenData_ForTest_WR,
+#                                p_value < 0.05)
+
+#Plot individuals that meet the criteria
+ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest_WR) +
   geom_point(size = 1.8, alpha=0.5, shape=21, stroke = 0.5, colour = "black",
              aes(fill=factor(Species)))+
   coord_polar() +
@@ -514,7 +530,6 @@ ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
   ylab("")+ 
   xlab("")+
   facet_wrap(Species~Treatment)
-
 ```
 
 To plot each individual ring witht the mean value and the confidence intervals
@@ -580,9 +595,21 @@ watson.wheeler.test(Mean ~ Treatment, EmlenData_ForTest, na.omit())
 watson.wheeler.test(Mean ~ BreedingDistribution, EmlenData_ForTest, na.omit())
 ```
 
+sg
+
 ```{r Circular_ANOVA}
-aov.circular(EmlenData_ForTest$Mean, EmlenData_ForTest$Treatment, kappa = NULL,
-    method = c("F.test", "LRT"), F.mod = TRUE, control.circular=list())
+#Make the mean circular
+EmlenData_ForTest_WR$Mean<-as.circular(EmlenData_ForTest_WR$Mean, units='degrees', template='geographics', modulo="2pi")
+#One dataframe for Willys and one for robins for testing the watson
+Willys_df <- subset(EmlenData_ForTest_WR, Species == "Willow_Warbler")
+Robins_df <- subset(EmlenData_ForTest_WR, Species == "Robin")
+```
+
+Now the watson test for Willys and Robins
+
+```{r}
+watson.wheeler.test(Mean ~ Treatment, Willys_df, na.omit())
+watson.wheeler.test(Mean ~ Treatment, Robins_df, na.omit())
 ```
 
 #### Hotelling paired test
@@ -592,25 +619,25 @@ First lets make a subset for each treatment and change the column names to somet
 ```{r treat_subset}
 Emlen_capture <- Emlen_capture %>%
   dplyr::select(-c("Treatment", "Identificator")) %>%
-  setnames(old = c("test_statistic", "p_value", "Mean", 
+  setnames(old = c("rho", "p_value", "Mean", 
                   "Lower_CI", "Upper_CI"),
-           new = c("test_statistic_capture", "p_value_capture", "Mean_capture",
+           new = c("rho_capture", "p_value_capture", "Mean_capture",
                    "Lower_CI_capture", "Upper_CI_capture"),
            skip_absent = TRUE)
 
 Emlen_control <- Emlen_control %>%
   dplyr::select(-c("Treatment", "Identificator", "Species", "Week", "BreedingDistribution", "y")) %>%
-  setnames(old = c("test_statistic", "p_value", "Mean", 
+  setnames(old = c("rho", "p_value", "Mean", 
                   "Lower_CI", "Upper_CI"),
-           new = c("test_statistic_control", "p_value_control", "Mean_control",
+           new = c("rho_control", "p_value_control", "Mean_control",
                    "Lower_CI_control", "Upper_CI_control"),
            skip_absent = TRUE)
 
 Emlen_treatment <- Emlen_treatment %>%
   dplyr::select(-c("Treatment", "Identificator", "Species", "Week", "BreedingDistribution", "y")) %>%
-  setnames(old = c("test_statistic", "p_value", "Mean", 
+  setnames(old = c("rho", "p_value", "Mean", 
                   "Lower_CI", "Upper_CI"),
-           new = c("test_statistic_treatment", "p_value_treatment", 
+           new = c("rho_treatment", "p_value_treatment", 
                    "Mean_treatment", "Lower_CI_treatment", "Upper_CI_treatment"),
            skip_absent = TRUE)
 ```
@@ -643,6 +670,29 @@ source("https://raw.githubusercontent.com/olitroski/circular/master/paired.hotel
 paired.hotelling(Emlen_hotelling$Mean_capture, Emlen_hotelling$Mean_control)
 paired.hotelling(Emlen_hotelling$Mean_capture, Emlen_hotelling$Mean_treatment)
 paired.hotelling(Emlen_hotelling$Mean_control, Emlen_hotelling$Mean_treatment)
+```
+
+And Hotelling for the Willys and Robins
+
+```{r}
+Emlen_hotelling_W <- subset(Emlen_hotelling, Species =="Willow_Warbler")
+Emlen_hotelling_R <- subset(Emlen_hotelling, Species =="Robin")
+```
+
+The test for Willys
+
+```{r}
+paired.hotelling(Emlen_hotelling_W$Mean_capture, Emlen_hotelling_W$Mean_control)
+paired.hotelling(Emlen_hotelling_W$Mean_capture, Emlen_hotelling_W$Mean_treatment)
+paired.hotelling(Emlen_hotelling_W$Mean_control, Emlen_hotelling_W$Mean_treatment)
+```
+
+The test for Robins
+
+```{r}
+paired.hotelling(Emlen_hotelling_R$Mean_capture, Emlen_hotelling_R$Mean_control)
+paired.hotelling(Emlen_hotelling_R$Mean_capture, Emlen_hotelling_R$Mean_treatment)
+paired.hotelling(Emlen_hotelling_R$Mean_control, Emlen_hotelling_R$Mean_treatment)
 ```
 
 #### Angular difference
@@ -791,15 +841,27 @@ emm_DS_DF <- as.data.frame(emm_DS)
 
 ggplot() +
   #coord_polar()+
-  geom_point(data=Emlen_glmer, aes(x=radians, y=count),alpha=0.35, 
-             colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
-              aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), 
-                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
+  geom_point(data=Emlen_glmer, aes(x=radians, y=count, colour=BreedingDistribution),
+             alpha=0.35)+
+  geom_ribbon(data= data.frame(emm_DS),
+              aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL),
+                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL, colour=BreedingDistribution),
               alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
-            aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
-  facet_wrap(Treatment~BreedingDistribution)
+  geom_line(data = data.frame(emm_DS),
+            aes(x = radians, y = FUN_RevTrans_pez(emmean), colour=BreedingDistribution), linewidth = 1)+
+  facet_wrap(vars(Treatment))
+
+# ggplot() +
+#   #coord_polar()+
+#   geom_point(data=Emlen_glmer, aes(x=radians, y=count, colour=BreedingDistribution),
+#              alpha=0.35)+
+#   geom_ribbon(data= data.frame(emm_DS),
+#               aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL),
+#                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
+#               alpha=0.5, fill= 'grey80') +
+#   geom_line(data = data.frame(emm_DS),
+#             aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
+#   facet_grid(Treatment~BreedingDistribution)
 
 emmeans(Emlen_lmer_TreatmentBreed, list(pairwise ~ radians:Treatment*BreedingDistribution), adjust="tukey")
 ```
@@ -922,13 +984,5 @@ ggplot() +
 
 emmeans(Emlen_lmer_Treatment_Willys, list(pairwise ~ radians:Treatment), adjust="tukey")
 ```
-
-GLMER PARA:
-
-counts \~ radians + (1\|Ring) + (1\|Species)
-
-counts \~ radians \* Treatment + (1\|Ring) + (1\|Species)
-
-counts \~ radians \* Treatment \* BreedingDistribution + (1\|Ring) + (1\|Species)
 
 ARMAR EL QUARTO PARA STF. LOS MODELOS DE STF VAN CON DAY COMO FACTOR
