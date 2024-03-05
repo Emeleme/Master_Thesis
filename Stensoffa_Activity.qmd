@@ -580,4 +580,3 @@ sunrise.sunset <- subset(db.facet, Ring == Ring[1])
       geom_vline(data=sunrise, aes(xintercept = Time-600), linetype=2) +
       geom_vline(data=sunset, aes(xintercept = Time+600), linetype=2)
 ```
-
