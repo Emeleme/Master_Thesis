@@ -267,7 +267,7 @@ ggplot(aes(x = sector, y = count), data = stf_datalong_EmlenInd)+
     geom_vline(data=stf_mergedEmlen, aes(xintercept = Lower_CI), linetype="dashed")+
     geom_vline(data=stf_mergedEmlen, aes(xintercept = Upper_CI), linetype="dashed")+
     ggtitle("Circular Plot")+
-    facet_grid(Ring~Treatment)+
+    facet_grid(Ring~Experiment)+
     theme_minimal()
 
 ```
@@ -365,6 +365,8 @@ And now divide them for treatment
 ```{r TreatmentSplit}
 stf_Emlen_control<-filter(stf_EmlenData_ForTest, Treatment=="Control") #just control
 stf_Emlen_treatment<-filter(stf_EmlenData_ForTest, Treatment=="Treatment") #just 24h treatment
+stf_Emlen_pre<-filter(stf_EmlenData_ForTest, Experiment=="1Pre")
+stf_Emlen_post<-filter(stf_EmlenData_ForTest, Experiment=="2Post")
 ```
 
 Plot the mean of all individuals in the treatments
@@ -394,7 +396,7 @@ stf_EmlenData_sp_Mean<- dplyr::select(stf_mergedEmlen, c("Identificator",
                                                  "Experiment"))
 #Unimodal spp
 stf_Results_treat_all_unimodal <- stf_EmlenData_sp_Mean %>%
-  group_by(Treatment) %>%
+  group_by(Treatment, Experiment) %>%
   summarize(
     N=length(Mean),
     Lower_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95,
@@ -411,14 +413,14 @@ stf_Results_treat_all_unimodal <- stf_EmlenData_sp_Mean %>%
 
 #Axial per spp
 stf_Results_treat_all_axial <- stf_EmlenData_sp_Mean %>%
-  group_by(Treatment) %>%
+  group_by(Treatment, Experiment) %>%
   summarize(
     N=length(Mean),
     Lower_CI = if (n() > 1) confidence_interval((Mean*2), conf.level = 0.95,
-                                                axial = FALSE)$conf.interval[1] 
+                                                axial = TRUE)$conf.interval[1] 
     else NA,
     Upper_CI = if (n() > 1) confidence_interval((Mean*2), conf.level = 0.95,
-                                                axial = FALSE)$conf.interval[2]
+                                                axial = TRUE)$conf.interval[2]
     else NA,
     test_statistic = rayleigh_test(deg2rad(Mean*2))$statistic,
     p_value = rayleigh_test(deg2rad(Mean*2))$p.value,
@@ -451,7 +453,7 @@ To get if its axial or unimodal the species
 ```{r}
 stf_combined_df_all <- bind_rows(stf_Results_treat_all_unimodal, stf_Results_treat_all_axial, .id = "Table")
 stf_Results_treat_all <- stf_combined_df_all %>%
-  group_by(Treatment) %>%
+  group_by(Treatment, Experiment) %>%
   slice(which.max(rho_val)) #Keep the values that are associated with the highest rho val
 stf_Results_treat_all <- rename(stf_Results_treat_all, Distribution = Table) #Change the column name
 stf_Results_treat_all$Distribution[stf_Results_treat_all$Distribution=="1"]<-"Unimodal"
@@ -469,8 +471,6 @@ stf_Results_treat <- as.data.frame(stf_Results_treat_all %>% mutate_all(adjust_3
 #Keep only > 0.05values
 stf_Results_treat <- subset(stf_Results_treat,
                                p_value < 0.05)
-#Keep only those species with higher N than 12
-stf_Results_treat <- subset(stf_Results_treat, N>12)
 stf_Results_treat <- stf_Results_treat %>% 
        rename("Mean" = "Mean_avg")
 ```
@@ -553,6 +553,26 @@ To plot each individual ring witht the mean value and the confidence intervals
 
 ### Tests
 
+First lets make a subset for each treatment and change the column names to something distinguishable
+
+```{r treat_subset}
+stf_Emlen_pre <- stf_Emlen_pre %>%   
+  dplyr::select(-c("Experiment", "Identificator")) %>%   
+  setnames(old = c("rho", "p_value", "Mean",    
+                   "Lower_CI", "Upper_CI"),        
+           new = c("rho_pre", "p_value_pre", "Mean_pre",       
+                   "Lower_CI_pre", "Upper_CI_pre"),        
+           skip_absent = TRUE)  
+stf_Emlen_post <- stf_Emlen_post %>% 
+  dplyr::select(-c("Experiment", "Identificator", "Species",   
+                   "BreedingDistribution", "y")) %>%  
+  setnames(old = c("rho", "p_value", "Mean",        
+                   "Lower_CI", "Upper_CI", "Treatment"),        
+           new = c("rho_post", "p_value_post",        
+                   "Mean_post", "Lower_CI_post", "Upper_CI_post", "Treatment_post"),     
+           skip_absent = TRUE)
+```
+
 #### Watson test
 
 To test whether the mean values for each group differ between groups we can do a watson test. R help documentation says:\
@@ -567,95 +587,92 @@ stf_EmlenData_ForTest$Mean<-as.circular(stf_EmlenData_ForTest$Mean,
                                         modulo="2pi")
 
 watson.wheeler.test(Mean ~ Treatment, stf_EmlenData_ForTest, na.omit())
+watson.wheeler.test(Mean ~ Experiment, stf_EmlenData_ForTest, na.omit())
+```
+
+Now we can also make a Watson test for the pre-experiment and post-experiment between control and treatment
+
+```{r}
+#| warning: false
+stf_Emlen_pre$Mean_pre<-as.circular(stf_Emlen_pre$Mean_pre, 
+                                        units='degrees', template='geographics',
+                                        modulo="2pi")
+stf_Emlen_post$Mean_post<-as.circular(stf_Emlen_post$Mean_post, 
+                                        units='degrees', template='geographics',
+                                        modulo="2pi")
+
+watson.wheeler.test(Mean_pre ~ Treatment, stf_Emlen_pre, na.omit())
+watson.wheeler.test(Mean_post ~ Treatment_post, stf_Emlen_post, na.omit())
 ```
 
 #### Hotelling paired test
 
-First lets make a subset for each treatment and change the column names to something distinguishable
-
-```{r treat_subset}
-stf_Emlen_control <- stf_Emlen_control %>%
-  dplyr::select(-c("Treatment", "Identificator")) %>%
-  setnames(old = c("rho", "p_value", "Mean", 
-                  "Lower_CI", "Upper_CI"),
-           new = c("rho_control", "p_value_control", "Mean_control",
-                   "Lower_CI_control", "Upper_CI_control"),
-           skip_absent = TRUE)
-
-stf_Emlen_treatment <- stf_Emlen_treatment %>%
-  dplyr::select(-c("Treatment", "Identificator", "Species", "BreedingDistribution", "y")) %>%
-  setnames(old = c("rho", "p_value", "Mean", 
-                  "Lower_CI", "Upper_CI"),
-           new = c("rho_treatment", "p_value_treatment", 
-                   "Mean_treatment", "Lower_CI_treatment", "Upper_CI_treatment"),
-           skip_absent = TRUE)
-```
-
 Now we can intersect all of the rings and make a table suitable for the hotelling test
 
 ```{r common_ids}
-stf_common_ids <- Reduce(intersect, list(stf_Emlen_control$Ring, stf_Emlen_treatment$Ring))
+stf_common_ids <- Reduce(intersect, list(stf_Emlen_pre$Ring, stf_Emlen_post$Ring))
 ```
 
 To retrieve the Rings that have capture, control and treatment experiments
 
 ```{r Emlen_ID}
-stf_Emlen_control_ID <- stf_Emlen_control[stf_Emlen_control$Ring %in% stf_common_ids, ]
-stf_Emlen_treatment_ID <- stf_Emlen_treatment[stf_Emlen_treatment$Ring %in% stf_common_ids, ]
+stf_Emlen_pre_ID <- stf_Emlen_pre[stf_Emlen_pre$Ring %in% stf_common_ids, ]
+stf_Emlen_post_ID <- stf_Emlen_post[stf_Emlen_post$Ring %in% stf_common_ids, ]
 ```
 
 And to merge a database for making the Hotelling test
 
 ```{r hotelling_db}
-stf_Emlen_hotelling <- merge(stf_Emlen_control_ID, stf_Emlen_treatment_ID, by="Ring")
+stf_Emlen_hotelling <- merge(stf_Emlen_pre_ID, stf_Emlen_post_ID, by="Ring")
 ```
 
 Now we run three paired hotelling test because I dont found how else do it
 
 ```{r paired_hotelling}
 source("https://raw.githubusercontent.com/olitroski/circular/master/paired.hotelling.r") #para correr el hotelling test. p.value<0.05 there are differences between the mean in the samples
-paired.hotelling(stf_Emlen_hotelling$Mean_control, stf_Emlen_hotelling$Mean_treatment)
+paired.hotelling(stf_Emlen_hotelling$Mean_pre, stf_Emlen_hotelling$Mean_post)
 ```
 
 And Hotelling for the Willys and Robins
 
 ```{r}
-Emlen_hotelling_W <- subset(Emlen_hotelling, Species =="Willow_Warbler")
-Emlen_hotelling_R <- subset(Emlen_hotelling, Species =="Robin")
+Emlen_hotelling_C <- subset(stf_Emlen_hotelling, Treatment =="Control")
+Emlen_hotelling_T <- subset(stf_Emlen_hotelling, Treatment =="Treatment")
 ```
 
 The test for Willys
 
 ```{r}
-paired.hotelling(Emlen_hotelling_W$Mean_capture, Emlen_hotelling_W$Mean_control)
-paired.hotelling(Emlen_hotelling_W$Mean_capture, Emlen_hotelling_W$Mean_treatment)
-paired.hotelling(Emlen_hotelling_W$Mean_control, Emlen_hotelling_W$Mean_treatment)
+paired.hotelling(Emlen_hotelling_C$Mean_pre, Emlen_hotelling_C$Mean_post)
+paired.hotelling(Emlen_hotelling_T$Mean_pre, Emlen_hotelling_T$Mean_post)
 ```
 
-The test for Robins
-
-```{r}
-paired.hotelling(Emlen_hotelling_R$Mean_capture, Emlen_hotelling_R$Mean_control)
-paired.hotelling(Emlen_hotelling_R$Mean_capture, Emlen_hotelling_R$Mean_treatment)
-paired.hotelling(Emlen_hotelling_R$Mean_control, Emlen_hotelling_R$Mean_treatment)
-```
+plot the difference
 
 #### Angular difference
 
 How much is the angular change between the two means that are different (capture and control; control and treatment)? For this I just going to make a substraction between means and plot the difference to see if they change to a similar degree. Values that are higher than 360 are adjust and values that are below 0 are adjust with the function previously described adjust_360
 
+First plot the difference
+
+```{r}
+plot(Emlen_hotelling_C$Mean_pre,Emlen_hotelling_C$Mean_post,
+     xlim = c(0, 360),
+     ylim = c(0, 360))
+abline(coef = c(0,1))
+
+plot(Emlen_hotelling_T$Mean_pre,Emlen_hotelling_T$Mean_post,
+     xlim = c(0, 360),
+     ylim = c(0, 360))
+abline(coef = c(0,1))
+```
+
+Calculate the angular difference. Porsitive values mean that the post experiment has greater values than the pre experiment, which could mean that the
+
 ```{r Angular_diff}
-Emlen_hotelling$Angular_diff_CC <- (Emlen_hotelling$Mean_control-Emlen_hotelling$Mean_capture)
+stf_Emlen_hotelling$Angular_diff <- (stf_Emlen_hotelling$Mean_post-stf_Emlen_hotelling$Mean_pre)
 #Angular_diff_CC <- adjust_360(Angular_diff_CC)
 #Emlen_hotelling$Angular_diff_CC <- as.circular(Emlen_hotelling$Angular_diff_CC,units='degrees', template='geographics', modulo="2pi")
-
-Emlen_hotelling$Angular_diff_CT <- (Emlen_hotelling$Mean_treatment-Emlen_hotelling$Mean_control)
-#Angular_diff_CT <- adjust_360(Angular_diff_CT)
-#Emlen_hotelling$Angular_diff_CT <- as.circular(Emlen_hotelling$Angular_diff_CT,units='degrees', template='geographics', modulo="2pi")
-
-Emlen_hotelling$Angular_diff_CapT <- (Emlen_hotelling$Mean_treatment-Emlen_hotelling$Mean_capture)
-#Angular_diff_CapT <- adjust_360(Angular_diff_CapT)
-#Emlen_hotelling$Angular_diff_CapT <- as.circular(Emlen_hotelling$Angular_diff_CapT,units='degrees', template='geographics', modulo="2pi")
 ```
 
 And now we can make a little plot with this information to see if all the individuals are changing in the same degree the orientation across groups
@@ -663,18 +680,40 @@ And now we can make a little plot with this information to see if all the indivi
 CALCULATE MEAN FOR ALL AND THE RHO AND CI TO PLOT THEM HERE TOO
 
 ```{r Angular_plot}
-plot(Emlen_hotelling$Angular_diff_CC)
-plot(Emlen_hotelling$Angular_diff_CT)
-plot(Emlen_hotelling$Angular_diff_CapT)
+plot(stf_Emlen_hotelling$Angular_diff)
+abline(h=0)
+```
 
-# plot(Emlen_hotelling$Angular_diff_CC, main = "Angular change capture vs control", points.plot=TRUE, xlim=c(-1.5,1), ylim=c(-1.1, 1.5))
-# arrows.circular(mean.circular(Emlen_hotelling$Angular_diff_CC), length=0.1)
-# 
-# plot(Emlen_hotelling$Angular_diff_CT, main = "Angular change control vs treatment", points.plot=TRUE, xlim=c(-1.5,1), ylim=c(-1.1, 1.5))
-# arrows.circular(mean.circular(Emlen_hotelling$Angular_diff_CT), length=0.1)
-# 
-# plot(Emlen_hotelling$Angular_diff_CapT, main = "Angular change capture vs treatment", points.plot=TRUE, xlim=c(-1.5,1), ylim=c(-1.1, 1.5))
-# arrows.circular(mean.circular(Emlen_hotelling$Angular_diff_CapT), length=0.1)
+Plot the angles in the same figure
+
+```{r}
+ggplot(aes(x = Mean, y=y, colour=Experiment), data=stf_EmlenData_ForTest) +
+  geom_point(size = 1.8, alpha=0.5, shape=21, stroke = 0.5, colour = "black",
+             aes(fill=factor(Experiment)))+
+  coord_polar() +
+  scale_x_continuous("", limits=c(0,360),
+                      breaks=seq(0,360-0.001,by=90),
+                      labels=c("N","E","S","W")) +
+  scale_y_continuous("",limits=c(0,1), breaks=1)+
+  geom_hline(yintercept=1)+
+  #theme_minimal()+
+  geom_segment(data=stf_Results_treat, 
+               mapping=aes(y = 0, xend = Mean, yend = rho_val, colour=Experiment),
+                  arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
+               #color="black", 
+               size=0.7)+
+  geom_vline(data=stf_Results_treat, aes(xintercept = Lower_CI, colour=Experiment), 
+             linetype="dashed")+
+  geom_vline(data=stf_Results_treat, aes(xintercept = Upper_CI, colour=Experiment), 
+             linetype="dashed")+
+  theme(panel.background = element_rect(fill = NA),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())+
+  ggtitle("Circular Plot") +  
+  ylab("")+ 
+  xlab("")+
+  facet_wrap(vars(Treatment))
 ```
 
 #### GLMER
@@ -684,9 +723,9 @@ We saw that for the means of means there's a difference between the control and 
 First I need to convert the sector numbers in radians to being able to calculate the sin and cos for each one of them
 
 ```{r Emlen_glmer}
-Emlen_glmer<- as.data.frame(datalong_EmlenInd)
-Emlen_glmer$sector<- as.numeric(Emlen_glmer$sector)
-Emlen_glmer$radians <- deg2rad(Emlen_glmer$sector)
+stf_Emlen_glmer<- as.data.frame(stf_datalong_EmlenInd)
+stf_Emlen_glmer$sector<- as.numeric(stf_Emlen_glmer$sector)
+stf_Emlen_glmer$radians <- deg2rad(stf_Emlen_glmer$sector)
 
 # Emlen_glmer <- Emlen_glmer %>%
 #   uncount(weights = count)
@@ -696,37 +735,37 @@ Then, to calculate the distribution of the counts vector we can use:
 
 ```{r counts_dist}
 #descdist(Emlen_glmer$sector,  discrete = FALSE)
-descdist(Emlen_glmer$count,  discrete = FALSE)
+descdist(stf_Emlen_glmer$count,  discrete = FALSE)
 ```
 
 ```{r}
-hist(Emlen_glmer$count)
+hist(stf_Emlen_glmer$count)
 ```
 
 And now the models
 
 ```{r}
-Emlen_lmer_Ring <- glmer(count ~ sin(radians) + cos(radians) + (1|Ring) + 
-                           (1|Species), data = Emlen_glmer,
+stf_Emlen_lmer_Ring <- glmer(count ~ sin(radians) + cos(radians) + (1|Ring),
+                             data = stf_Emlen_glmer,
                          na.action = 'na.fail', family="poisson")
-summary(Emlen_lmer_Ring)
-check_model(Emlen_lmer_Ring)
-plot(DHARMa::simulateResiduals(Emlen_lmer_Ring)) 
-fam.pez <- family(Emlen_lmer_Ring)
+summary(stf_Emlen_lmer_Ring)
+check_model(stf_Emlen_lmer_Ring)
+plot(DHARMa::simulateResiduals(stf_Emlen_lmer_Ring)) 
+fam.pez <- family(stf_Emlen_lmer_Ring)
 
 FUN_RevTrans_pez <- function(x){
   return(fam.pez$linkinv(x)) 
 }
-visreg(Emlen_lmer_Ring, "radians", trans = FUN_RevTrans_pez)
+visreg(stf_Emlen_lmer_Ring, "radians", trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_Ring, cov.keep= c('radians'))
+gr <- emmeans::ref_grid(stf_Emlen_lmer_Ring, cov.keep= c('radians'))
 emm_DS <- emmeans::emmeans(gr, spec= c('radians'), level= 0.95)
 emm_DS_DF <- as.data.frame(emm_DS)
 
 ggplot() +
-  coord_polar()+
-  #geom_point(data=Emlen_glmer, aes(x=rad2deg(radians), y=count),alpha=0.35,
-   #                       colour="lightblue")+
+  #coord_polar()+
+  geom_point(data=stf_Emlen_glmer, aes(x=rad2deg(radians), y=count),alpha=0.35,
+                          colour="lightblue")+
   geom_ribbon(data= data.frame(emm_DS), 
               aes(x = rad2deg(radians), ymin= FUN_RevTrans_pez(asymp.LCL), 
                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
@@ -739,195 +778,76 @@ ggplot() +
 ```
 
 ```{r}
-Emlen_lmer_Treatment <- glmer(count ~ sin(radians)*Treatment + 
-                           cos(radians)*Treatment + (1|Ring) + 
-                             (1|Species), data = Emlen_glmer,
-                         na.action = 'na.fail', family="poisson")
-summary(Emlen_lmer_Treatment)
-check_model(Emlen_lmer_Treatment)
-plot(DHARMa::simulateResiduals(Emlen_lmer_Treatment)) 
-fam.pez <- family(Emlen_lmer_Treatment)
+stf_Emlen_lmer_Experiment <- glmer(count ~ sin(radians)*Experiment + 
+                           cos(radians)*Experiment + (1|Ring), 
+                           data = stf_Emlen_glmer,
+                           na.action = 'na.fail', family="poisson")
+summary(stf_Emlen_lmer_Experiment)
+check_model(stf_Emlen_lmer_Experiment)
+plot(DHARMa::simulateResiduals(stf_Emlen_lmer_Experiment)) 
+fam.pez <- family(stf_Emlen_lmer_Experiment)
 
-visreg(Emlen_lmer_Treatment, "radians", by='Treatment', trans = FUN_RevTrans_pez)
+visreg(stf_Emlen_lmer_Experiment, "radians", by='Experiment', 
+       trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_Treatment, cov.keep= c('radians', 'Treatment'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Treatment'), level= 0.95)
+gr <- emmeans::ref_grid(stf_Emlen_lmer_Experiment, 
+                        cov.keep= c('radians', 'Experiment'))
+emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Experiment'),
+                           level= 0.95)
 emm_DS_DF <- as.data.frame(emm_DS)
 
 ggplot() +
   #coord_polar()+
-  geom_point(data=Emlen_glmer, aes(x=radians, y=count, colour=Species),alpha=0.3)+
+  geom_point(data=stf_Emlen_glmer, aes(x=radians, y=count, colour=Treatment),
+             alpha=0.3)+
   geom_ribbon(data= data.frame(emm_DS), 
               aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), 
                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
               alpha=0.5, fill= 'grey80') +
   geom_line(data = data.frame(emm_DS), 
             aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
-  facet_wrap(vars(Treatment))
+  facet_wrap(vars(Experiment))
 
-emmeans(Emlen_lmer_Treatment, list(pairwise ~ radians:Treatment), adjust="tukey")
+emmeans(stf_Emlen_lmer_Experiment, list(pairwise ~ radians:Experiment), 
+        adjust="tukey")
 ```
 
 ```{r}
-Emlen_lmer_TreatmentBreed <- glmer(count ~ sin(radians)*Treatment*BreedingDistribution + 
-                           cos(radians)*Treatment*BreedingDistribution + (1|Ring) + 
-                           (1|Species), data = Emlen_glmer,
-                         na.action = 'na.fail', family="poisson")
-summary(Emlen_lmer_TreatmentBreed)
-check_model(Emlen_lmer_TreatmentBreed)
-plot(DHARMa::simulateResiduals(Emlen_lmer_TreatmentBreed)) 
-fam.pez <- family(Emlen_lmer_TreatmentBreed)
+stf_Emlen_lmer_ExperimentTreatment <- 
+  glmer(count ~ sin(radians)*Experiment*Treatment + 
+          cos(radians)*Experiment*Treatment + (1|Ring),
+        data = stf_Emlen_glmer, 
+        na.action = 'na.fail', family="poisson")
+summary(stf_Emlen_lmer_ExperimentTreatment)
+check_model(stf_Emlen_lmer_ExperimentTreatment)
+plot(DHARMa::simulateResiduals(stf_Emlen_lmer_ExperimentTreatment)) 
+fam.pez <- family(stf_Emlen_lmer_ExperimentTreatment)
 
-#visreg(Emlen_lmer_TreatmentBreed, "radians", by=c('Treatment','BreedingDistribution'), trans = FUN_RevTrans_pez)
+# visreg(stf_Emlen_lmer_ExperimentTreatment, "radians", by=
+#          c('Treatment','Experiment'), trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_TreatmentBreed, cov.keep= c('radians', 'Treatment', 'BreedingDistribution'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Treatment', 'BreedingDistribution'), level= 0.95)
+gr <- emmeans::ref_grid(stf_Emlen_lmer_ExperimentTreatment, cov.keep= 
+                          c('radians', 'Treatment', 'Experiment'))
+emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Treatment', 'Experiment'), 
+                           level= 0.95)
 emm_DS_DF <- as.data.frame(emm_DS)
 
 ggplot() +
   #coord_polar()+
-  geom_point(data=Emlen_glmer, aes(x=radians, y=count, colour=BreedingDistribution),
+  geom_point(data=stf_Emlen_glmer, aes(x=radians, y=count, colour=Treatment),
              alpha=0.35)+
   geom_ribbon(data= data.frame(emm_DS),
               aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL),
-                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL, colour=BreedingDistribution),
+                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL, 
+                  colour=Treatment),
               alpha=0.5, fill= 'grey80') +
   geom_line(data = data.frame(emm_DS),
-            aes(x = radians, y = FUN_RevTrans_pez(emmean), colour=BreedingDistribution), linewidth = 1)+
-  facet_wrap(vars(Treatment))
+            aes(x = radians, y = FUN_RevTrans_pez(emmean), 
+                colour=Treatment), linewidth = 1)+
+  facet_wrap(vars(Experiment))
 
-# ggplot() +
-#   #coord_polar()+
-#   geom_point(data=Emlen_glmer, aes(x=radians, y=count, colour=BreedingDistribution),
-#              alpha=0.35)+
-#   geom_ribbon(data= data.frame(emm_DS),
-#               aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL),
-#                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
-#               alpha=0.5, fill= 'grey80') +
-#   geom_line(data = data.frame(emm_DS),
-#             aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
-#   facet_grid(Treatment~BreedingDistribution)
-
-emmeans(Emlen_lmer_TreatmentBreed, list(pairwise ~ radians:Treatment*BreedingDistribution), adjust="tukey")
-```
-
-```{r Robin_glmer1}
-Emlen_glmer_Robins<- dplyr::filter(Emlen_glmer, Species=="Robin")
-Emlen_lmer_Ring_Robin <- glmer(count ~ sin(radians) + cos(radians) + (1|Ring),
-                               data = Emlen_glmer_Robins,
-                         na.action = 'na.fail', family="poisson")
-summary(Emlen_lmer_Ring_Robin)
-check_model(Emlen_lmer_Ring_Robin)
-plot(DHARMa::simulateResiduals(Emlen_lmer_Ring_Robin)) 
-fam.pez <- family(Emlen_lmer_Ring_Robin)
-
-visreg(Emlen_lmer_Ring_Robin, "radians", trans = FUN_RevTrans_pez)
-
-gr <- emmeans::ref_grid(Emlen_lmer_Ring_Robin, cov.keep= c('radians'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
-
-ggplot() +
-  #coord_polar()+
-  geom_point(data=Emlen_glmer, aes(x=rad2deg(radians), y=count),alpha=0.35,
-                          colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
-              aes(x = rad2deg(radians), ymin= FUN_RevTrans_pez(asymp.LCL), 
-                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
-              alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
-            aes(x = rad2deg(radians), y = FUN_RevTrans_pez(emmean)), linewidth = 1)
-```
-
-```{r Robin_glmer2}
-
-Emlen_lmer_Treatment_Robin <- glmer(count ~ sin(radians)*Treatment + 
-                           cos(radians)*Treatment + (1|Ring),
-                           data = Emlen_glmer_Robins,
-                         na.action = 'na.fail', family="poisson")
-summary(Emlen_lmer_Treatment_Robin)
-check_model(Emlen_lmer_Treatment_Robin)
-plot(DHARMa::simulateResiduals(Emlen_lmer_Treatment_Robin)) 
-fam.pez <- family(Emlen_lmer_Treatment_Robin)
-
-visreg(Emlen_lmer_Treatment_Robin, "radians", by='Treatment', trans = FUN_RevTrans_pez)
-
-gr <- emmeans::ref_grid(Emlen_lmer_Treatment_Robin, cov.keep= c('radians', 'Treatment'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Treatment'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
-
-ggplot() +
-  #coord_polar()+
-  geom_point(data=Emlen_glmer, aes(x=radians, y=count),alpha=0.35, 
-             colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
-              aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), 
-                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
-              alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
-            aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
-  facet_wrap(vars(Treatment))
-
-emmeans(Emlen_lmer_Treatment_Robin, list(pairwise ~ radians:Treatment), adjust="tukey")
-```
-
-```{r Willys_glmer1}
-Emlen_glmer_Willys<- dplyr::filter(Emlen_glmer, Species=="Willow_Warbler")
-Emlen_lmer_Ring_Willys <- glmer(count ~ sin(radians) + cos(radians) + (1|Ring),
-                               data = Emlen_glmer_Willys,
-                         na.action = 'na.fail', family="poisson")
-summary(Emlen_lmer_Ring_Willys)
-check_model(Emlen_lmer_Ring_Willys)
-plot(DHARMa::simulateResiduals(Emlen_lmer_Ring_Willys)) 
-fam.pez <- family(Emlen_lmer_Ring_Willys)
-
-visreg(Emlen_lmer_Ring_Willys, "radians", trans = FUN_RevTrans_pez)
-
-gr <- emmeans::ref_grid(Emlen_lmer_Ring_Willys, cov.keep= c('radians'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
-
-ggplot() +
-  #coord_polar()+
-  geom_point(data=Emlen_glmer, aes(x=rad2deg(radians), y=count),alpha=0.35,
-                          colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
-              aes(x = rad2deg(radians), ymin= FUN_RevTrans_pez(asymp.LCL), 
-                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
-              alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
-            aes(x = rad2deg(radians), y = FUN_RevTrans_pez(emmean)), linewidth = 1)
-```
-
-```{r Willys_glmer2}
-Emlen_lmer_Treatment_Willys <- glmer(count ~ sin(radians)*Treatment + 
-                           cos(radians)*Treatment + (1|Ring),
-                           data = Emlen_glmer_Willys,
-                         na.action = 'na.fail', family="poisson")
-summary(Emlen_lmer_Treatment_Willys)
-check_model(Emlen_lmer_Treatment_Willys)
-plot(DHARMa::simulateResiduals(Emlen_lmer_Treatment_Willys)) 
-fam.pez <- family(Emlen_lmer_Treatment_Willys)
-
-visreg(Emlen_lmer_Treatment_Willys, "radians", by='Treatment', trans = FUN_RevTrans_pez)
-
-gr <- emmeans::ref_grid(Emlen_lmer_Treatment_Willys, cov.keep= c('radians', 'Treatment'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Treatment'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
-
-ggplot() +
-  #coord_polar()+
-  geom_point(data=Emlen_glmer, aes(x=radians, y=count),alpha=0.35, 
-             colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
-              aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), 
-                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
-              alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
-            aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
-  facet_wrap(vars(Treatment))
-
-emmeans(Emlen_lmer_Treatment_Willys, list(pairwise ~ radians:Treatment), adjust="tukey")
+emmeans(stf_Emlen_lmer_ExperimentTreatment, 
+        list(pairwise ~ radians:Treatment*Experiment), adjust="tukey")
 ```
 
 ARMAR EL QUARTO PARA STF. LOS MODELOS DE STF VAN CON DAY COMO FACTOR
