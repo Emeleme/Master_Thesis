@@ -211,7 +211,8 @@ for (i in stf_uniqueValues_ID) {
 To combine the tables and to know which individuals have axial or unimodal
 
 ```{r}
-stf_combined_df <- bind_rows(stf_results_df_unimodal, stf_results_df_axial, .id = "Table")
+stf_combined_df <- bind_rows(stf_results_df_unimodal, 
+                             stf_results_df_axial, .id = "Table")
 ```
 
 And now
