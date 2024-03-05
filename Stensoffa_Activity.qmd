@@ -432,7 +432,7 @@ ggplot(stf_gr_emmeans_mod1, aes(x = Day, y = emmean, color = DayNight)) +
 
 Lets chech the r2
 
-```{r}
+```{r perform_mod1}
 model_performance(stf_mod_Exp_meanDayNight) 
 
 ```
@@ -479,7 +479,7 @@ stf_gr_emmeans_mod3<-as.data.frame(emmeans(stf_gr_mod3, specs = c("Setup", "Day"
       level=0.95))
 ```
 
-```{r}
+```{r pairs_table_mod3}
 stf_pval_mod3<-emmeans(stf_gr_mod3, specs = c("Setup", "Day"),
                        at = list(Days = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14)),
                        level=0.95)
@@ -512,7 +512,7 @@ ggplot(stf_gr_emmeans_mod3, aes(x = Day, y = emmean, color=Setup)) +
 
 Lets chech the r2
 
-```{r}
+```{r perform_mod3}
 model_performance(stf_mod_Exp_meanTotal) 
 
 ```
@@ -521,13 +521,13 @@ model_performance(stf_mod_Exp_meanTotal)
 
 To check each model against a null model and then a comparison between all of the models all together. First lets define the null models, the null models are the same as the models proposed above (only using the ones corrected by species), but without using the factors, instead those are going to be 1.
 
-```{r null_mods}
+```{r null_mod1}
 null_mod1_R<-lmer(DayNight_activity ~ 1 + (1|Ring), 
                 data = stf_mean_activity_DayNight, na.action = na.exclude)
 anova(stf_mod_Exp_meanDayNight, null_mod1_R, test="LTR")
 ```
 
-```{r}
+```{r null_mod3}
 null_mod3_R<-lmer(DayNight_activity ~ 1 + (1|Ring),
                 data = stf_mean_activity_Total, na.action = na.exclude)
 anova(stf_mod_Exp_meanTotal, null_mod3_R, test="LTR")
@@ -560,7 +560,7 @@ stf_data_actogram_raw <- stf_data_actogram_raw %>%
 
 And the actogram can be plotted now
 
-```{r}
+```{r actogram_Ring}
 ggplot(stf_data_actogram_raw, aes(x = time, y = date, fill = !!sym(stf_activity)))+
   geom_tile()+
   facet_wrap(Setup ~ Ring)+
@@ -570,13 +570,13 @@ ggplot(stf_data_actogram_raw, aes(x = time, y = date, fill = !!sym(stf_activity)
                       low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF")
   
 #Seguir con esto después
-sunrise.sunset <- subset(db.facet, Ring == Ring[1])
-    sunrise <- ddply(sunrise.sunset, .(Day), summarise, 
-                     Time = as.POSIXct(paste(substr(Time[1], 1, 10), Sunrise[1])))
-    sunset <- ddply(sunrise.sunset, .(Day), summarise, 
-                    Time = as.POSIXct(paste(substr(Time[1], 1, 10), Sunset[1])))
-    
-    p1 <- p1 +  
-      geom_vline(data=sunrise, aes(xintercept = Time-600), linetype=2) +
-      geom_vline(data=sunset, aes(xintercept = Time+600), linetype=2)
+# sunrise.sunset <- subset(db.facet, Ring == Ring[1])
+#     sunrise <- ddply(sunrise.sunset, .(Day), summarise, 
+#                      Time = as.POSIXct(paste(substr(Time[1], 1, 10), Sunrise[1])))
+#     sunset <- ddply(sunrise.sunset, .(Day), summarise, 
+#                     Time = as.POSIXct(paste(substr(Time[1], 1, 10), Sunset[1])))
+#     
+#     p1 <- p1 +  
+#       geom_vline(data=sunrise, aes(xintercept = Time-600), linetype=2) +
+#       geom_vline(data=sunset, aes(xintercept = Time+600), linetype=2)
 ```
