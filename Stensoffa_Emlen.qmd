@@ -671,8 +671,6 @@ Calculate the angular difference. Porsitive values mean that the post experiment
 
 ```{r Angular_diff}
 stf_Emlen_hotelling$Angular_diff <- (stf_Emlen_hotelling$Mean_post-stf_Emlen_hotelling$Mean_pre)
-#Angular_diff_CC <- adjust_360(Angular_diff_CC)
-#Emlen_hotelling$Angular_diff_CC <- as.circular(Emlen_hotelling$Angular_diff_CC,units='degrees', template='geographics', modulo="2pi")
 ```
 
 And now we can make a little plot with this information to see if all the individuals are changing in the same degree the orientation across groups
@@ -777,6 +775,24 @@ ggplot() +
 
 ```
 
+model comparison
+
+```{r}
+null_stf_Emlen_lmer_Ring <- glmer(count ~ 1 + (1|Ring),
+                             data = stf_Emlen_glmer,
+                         na.action = 'na.fail', family="poisson")
+
+anova(stf_Emlen_lmer_Ring, null_stf_Emlen_lmer_Ring, test="LTR")
+```
+
+model performance
+
+```{r}
+model_performance(stf_Emlen_lmer_Ring)
+```
+
+second
+
 ```{r}
 stf_Emlen_lmer_Experiment <- glmer(count ~ sin(radians)*Experiment + 
                            cos(radians)*Experiment + (1|Ring), 
@@ -811,6 +827,21 @@ ggplot() +
 emmeans(stf_Emlen_lmer_Experiment, list(pairwise ~ radians:Experiment), 
         adjust="tukey")
 ```
+
+model comparison
+
+```{r}
+anova(stf_Emlen_lmer_Ring, null_stf_Emlen_lmer_Ring, stf_Emlen_lmer_Experiment,
+      test="LTR")
+```
+
+model performance
+
+```{r}
+model_performance(stf_Emlen_lmer_Experiment)
+```
+
+third
 
 ```{r}
 stf_Emlen_lmer_ExperimentTreatment <- 
@@ -850,4 +881,15 @@ emmeans(stf_Emlen_lmer_ExperimentTreatment,
         list(pairwise ~ radians:Treatment*Experiment), adjust="tukey")
 ```
 
-ARMAR EL QUARTO PARA STF. LOS MODELOS DE STF VAN CON DAY COMO FACTOR
+model comparison
+
+```{r}
+anova(stf_Emlen_lmer_Ring, null_stf_Emlen_lmer_Ring, stf_Emlen_lmer_Experiment,
+      stf_Emlen_lmer_ExperimentTreatment, test="LTR")
+```
+
+model performance
+
+```{r}
+model_performance(stf_Emlen_lmer_ExperimentTreatment)
+```
