@@ -719,8 +719,11 @@ CALCULATE MEAN FOR ALL AND THE RHO AND CI TO PLOT THEM HERE TOO
 
 ```{r Angular_plot}
 plot(Emlen_hotelling$Angular_diff_CC)
+abline(h=0)
 plot(Emlen_hotelling$Angular_diff_CT)
+abline(h=0)
 plot(Emlen_hotelling$Angular_diff_CapT)
+abline(h=0)
 
 # plot(Emlen_hotelling$Angular_diff_CC, main = "Angular change capture vs control", points.plot=TRUE, xlim=c(-1.5,1), ylim=c(-1.1, 1.5))
 # arrows.circular(mean.circular(Emlen_hotelling$Angular_diff_CC), length=0.1)
@@ -779,9 +782,9 @@ emm_DS <- emmeans::emmeans(gr, spec= c('radians'), level= 0.95)
 emm_DS_DF <- as.data.frame(emm_DS)
 
 ggplot() +
-  coord_polar()+
-  #geom_point(data=Emlen_glmer, aes(x=rad2deg(radians), y=count),alpha=0.35,
-   #                       colour="lightblue")+
+  #coord_polar()+
+  geom_point(data=Emlen_glmer, aes(x=rad2deg(radians), y=count),alpha=0.35,
+                          colour="lightblue")+
   geom_ribbon(data= data.frame(emm_DS), 
               aes(x = rad2deg(radians), ymin= FUN_RevTrans_pez(asymp.LCL), 
                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
@@ -789,8 +792,24 @@ ggplot() +
   geom_line(data = data.frame(emm_DS), 
             aes(x = rad2deg(radians), y = FUN_RevTrans_pez(emmean)), linewidth = 1)
 
-#emmeans(Emlen_lmer_Ring, list(pairwise ~ radians), adjust="tukey")
+emmeans(Emlen_lmer_Ring, list(pairwise ~ radians), adjust="tukey")
 
+```
+
+Model comparison
+
+```{r}
+null_Emlen_lmer_Ring <- glmer(count ~ 1 + (1|Ring) + 
+                           (1|Species), data = Emlen_glmer,
+                         na.action = 'na.fail', family="poisson")
+
+anova(Emlen_lmer_Ring, null_Emlen_lmer_Ring, test="LTR")
+```
+
+model performance
+
+```{r}
+model_performance(Emlen_lmer_Treatment) 
 ```
 
 ```{r}
@@ -821,6 +840,18 @@ ggplot() +
   facet_wrap(vars(Treatment))
 
 emmeans(Emlen_lmer_Treatment, list(pairwise ~ radians:Treatment), adjust="tukey")
+```
+
+model comparison
+
+```{r}
+anova(Emlen_lmer_Ring, Emlen_lmer_Treatment, null_Emlen_lmer_Ring, test="LTR")
+```
+
+model performance
+
+```{r}
+model_performance(Emlen_lmer_Treatment) 
 ```
 
 ```{r}
@@ -866,8 +897,24 @@ ggplot() +
 emmeans(Emlen_lmer_TreatmentBreed, list(pairwise ~ radians:Treatment*BreedingDistribution), adjust="tukey")
 ```
 
+model comparison
+
+```{r}
+anova(Emlen_lmer_TreatmentBreed, Emlen_lmer_Ring, Emlen_lmer_Treatment,
+      null_Emlen_lmer_Ring, test="LTR")
+```
+
+model performance
+
+```{r}
+model_performance(Emlen_lmer_TreatmentBreed)
+```
+
+Robins
+
 ```{r Robin_glmer1}
 Emlen_glmer_Robins<- dplyr::filter(Emlen_glmer, Species=="Robin")
+
 Emlen_lmer_Ring_Robin <- glmer(count ~ sin(radians) + cos(radians) + (1|Ring),
                                data = Emlen_glmer_Robins,
                          na.action = 'na.fail', family="poisson")
@@ -894,6 +941,24 @@ ggplot() +
             aes(x = rad2deg(radians), y = FUN_RevTrans_pez(emmean)), linewidth = 1)
 ```
 
+Model comparison
+
+```{r}
+null_Emlen_lmer_Ring_Robin <- glmer(count ~ 1 + (1|Ring), 
+                                    data = Emlen_glmer_Robins,
+                         na.action = 'na.fail', family="poisson")
+
+anova(Emlen_lmer_Ring_Robin, null_Emlen_lmer_Ring_Robin, test="LTR")
+```
+
+Model performance
+
+```{r}
+model_performance(Emlen_lmer_Ring_Robin)
+```
+
+second
+
 ```{r Robin_glmer2}
 
 Emlen_lmer_Treatment_Robin <- glmer(count ~ sin(radians)*Treatment + 
@@ -913,7 +978,7 @@ emm_DS_DF <- as.data.frame(emm_DS)
 
 ggplot() +
   #coord_polar()+
-  geom_point(data=Emlen_glmer, aes(x=radians, y=count),alpha=0.35, 
+  geom_point(data=Emlen_glmer, aes(x=radians, y=count, colour=),alpha=0.35, 
              colour="lightblue")+
   geom_ribbon(data= data.frame(emm_DS), 
               aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), 
@@ -925,6 +990,21 @@ ggplot() +
 
 emmeans(Emlen_lmer_Treatment_Robin, list(pairwise ~ radians:Treatment), adjust="tukey")
 ```
+
+model comparison
+
+```{r}
+anova(Emlen_lmer_Ring_Robin, null_Emlen_lmer_Ring_Robin, 
+      Emlen_lmer_Treatment_Robin, test="LTR")
+```
+
+model performance
+
+```{r}
+model_performance(Emlen_lmer_Treatment_Robin)
+```
+
+Willys
 
 ```{r Willys_glmer1}
 Emlen_glmer_Willys<- dplyr::filter(Emlen_glmer, Species=="Willow_Warbler")
@@ -953,6 +1033,24 @@ ggplot() +
   geom_line(data = data.frame(emm_DS), 
             aes(x = rad2deg(radians), y = FUN_RevTrans_pez(emmean)), linewidth = 1)
 ```
+
+model comparison
+
+```{r}
+null_Emlen_lmer_Ring_Willys <- glmer(count ~ 1 + (1|Ring), 
+                                    data = Emlen_glmer_Willys,
+                         na.action = 'na.fail', family="poisson")
+
+anova(Emlen_lmer_Ring_Willys, null_Emlen_lmer_Ring_Willys, test="LTR")
+```
+
+model performance
+
+```{r}
+model_performance(Emlen_lmer_Ring_Willys)
+```
+
+second
 
 ```{r Willys_glmer2}
 Emlen_lmer_Treatment_Willys <- glmer(count ~ sin(radians)*Treatment + 
@@ -983,6 +1081,19 @@ ggplot() +
   facet_wrap(vars(Treatment))
 
 emmeans(Emlen_lmer_Treatment_Willys, list(pairwise ~ radians:Treatment), adjust="tukey")
+```
+
+model comparison
+
+```{r}
+anova(Emlen_lmer_Ring_Willys, null_Emlen_lmer_Ring_Willys,
+      Emlen_lmer_Treatment_Willys, test="LTR")
+```
+
+model performance
+
+```{r}
+model_performance(Emlen_lmer_Treatment_Willys)
 ```
 
 ARMAR EL QUARTO PARA STF. LOS MODELOS DE STF VAN CON DAY COMO FACTOR
