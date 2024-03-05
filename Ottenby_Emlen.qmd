@@ -1095,5 +1095,3 @@ model performance
 ```{r}
 model_performance(Emlen_lmer_Treatment_Willys)
 ```
-
-ARMAR EL QUARTO PARA STF. LOS MODELOS DE STF VAN CON DAY COMO FACTOR
