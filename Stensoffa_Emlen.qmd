@@ -51,7 +51,7 @@ Lets read the table with the Emlen data
 ```{r database}
 #| output: false
 #| include: false
-stf_Emlen_IndData<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/EmlenData_Autumn2023.txt", h=T)
+stf_Emlen_IndData<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/EmlenData_Autumn2023.txt", h=T, fill=T)
 ```
 
 Let's change the names of the columns for the middle of the angles the sector has
@@ -70,7 +70,7 @@ setnames(stf_Emlen_IndData, old=c("S1","S2","S3","S4","S5","S6","S7","S8","S9",
 To add an identification to every Emlen experiment, because there are more than one experiment per ring
 
 ```{r DirectionTable}
-Emlen_IndData<-tibble::rowid_to_column(Emlen_IndData, "Identificator")
+stf_Emlen_IndData<-tibble::rowid_to_column(stf_Emlen_IndData, "Identificator")
 ```
 
 Let's define two functions that are going to be helpful handling circular data because there's functions that need the data input in degrees and others in radians. With this functions I can change it easily
@@ -92,26 +92,11 @@ adjust_360 <- function(x) {
 }
 ```
 
-Now, lets organize the dates in the table
-
-```{r Weeks}
-Emlen_IndData$Date<-lubridate::dmy(Emlen_IndData$Date)
-Emlen_IndData <- Emlen_IndData %>%
-  mutate(Week = case_when(
-    between(Date, as.Date("2023-04-20"), as.Date("2023-04-26")) ~ 1,
-    between(Date, as.Date("2023-04-28"), as.Date("2023-05-04")) ~ 2,
-    between(Date, as.Date("2023-05-08"), as.Date("2023-05-14")) ~ 3,
-    between(Date, as.Date("2023-05-16"), as.Date("2023-05-22")) ~ 4,
-    between(Date, as.Date("2023-05-25"), as.Date("2023-05-31")) ~ 5,
-    TRUE ~ 6 # Defining values for each week with date intervals
-  ))
-```
-
 This code makes the reppetition of the angles to a long format to being able to analyze the data after
 
 ```{r data_long}
-datalong_EmlenInd<-pivot_longer( #makes it a frequency to rep after
-  Emlen_IndData,
+stf_datalong_EmlenInd<-pivot_longer( #makes it a frequency to rep after
+  stf_Emlen_IndData,
   cols=c("7.5","22.5","37.5","52.5","67.5","82.5","97.5","112.5",
                  "127.5","142.5","157.5","172.5","187.5","202.5","217.5",
                  "232.5","247.5","262.5","277.5","292.5","307.5","322.5",
@@ -123,31 +108,31 @@ datalong_EmlenInd<-pivot_longer( #makes it a frequency to rep after
 We can make proportions out of the count data to plot it later
 
 ```{r}
-datalong_EmlenInd$sector<- as.numeric(datalong_EmlenInd$sector)
-datalong_EmlenInd$count_prop<-datalong_EmlenInd$count/datalong_EmlenInd$TotalScratches
+stf_datalong_EmlenInd$sector<- as.numeric(stf_datalong_EmlenInd$sector)
+stf_datalong_EmlenInd$count_prop<-stf_datalong_EmlenInd$count/stf_datalong_EmlenInd$TotalScratches
 ```
 
 Lets save the all the numbers in one variable to make a new table with the
 
 ```{r uniqueIdent}
-uniqueValues_ID<-unique(datalong_EmlenInd$Identificator)
+stf_uniqueValues_ID<-unique(stf_datalong_EmlenInd$Identificator)
 ```
 
 This is a really important piece of code because I'm going to store the statistics results for each individual experiment of unimodal
 
 ```{r Results_unimodal}
 #| warning: false
-results_df_unimodal <- data.frame(Identificator = uniqueValues_ID,   #create an empty dataframe to store results
-                         test_statistic = numeric(length(uniqueValues_ID)),
-                         p_value = numeric(length(uniqueValues_ID)),
-                         Mean = numeric(length(uniqueValues_ID)),
-                         rho = numeric(length(uniqueValues_ID)),
-                         Lower_CI = numeric(length(uniqueValues_ID)),
-                         Upper_CI = numeric(length(uniqueValues_ID)))
+stf_results_df_unimodal <- data.frame(Identificator = stf_uniqueValues_ID,   #create an empty dataframe to store results
+                         test_statistic = numeric(length(stf_uniqueValues_ID)),
+                         p_value = numeric(length(stf_uniqueValues_ID)),
+                         Mean = numeric(length(stf_uniqueValues_ID)),
+                         rho = numeric(length(stf_uniqueValues_ID)),
+                         Lower_CI = numeric(length(stf_uniqueValues_ID)),
+                         Upper_CI = numeric(length(stf_uniqueValues_ID)))
 
 # Loop through unique identifiers
-for (i in uniqueValues_ID) {
-  subset_data <- subset(datalong_EmlenInd, Identificator == i) #subsets data for each identificator/each entry in the database
+for (i in stf_uniqueValues_ID) {
+  subset_data <- subset(stf_datalong_EmlenInd, Identificator == i) #subsets data for each identificator/each entry in the database
   IndData <- as.data.frame(as.numeric(unlist(subset_data)))
   IndData <- na.omit(IndData)
   longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count)) #repeats the degrees the times we counted already
@@ -167,13 +152,13 @@ for (i in uniqueValues_ID) {
   }
   
   # Assign results to the correct rows
-  row_index <- which(results_df_unimodal$Identificator == i)
-  results_df_unimodal$test_statistic[row_index] <- test_statistic
-  results_df_unimodal$p_value[row_index] <- p_value
-  results_df_unimodal$Mean[row_index]<- MeanDir_deg
-  results_df_unimodal$rho[row_index]<-rho_val
-  results_df_unimodal$Lower_CI[row_index]<- conf_interval$conf.interval[1]
-  results_df_unimodal$Upper_CI[row_index]<- conf_interval$conf.interval[2]
+  row_index <- which(stf_results_df_unimodal$Identificator == i)
+  stf_results_df_unimodal$test_statistic[row_index] <- test_statistic
+  stf_results_df_unimodal$p_value[row_index] <- p_value
+  stf_results_df_unimodal$Mean[row_index]<- MeanDir_deg
+  stf_results_df_unimodal$rho[row_index]<-rho_val
+  stf_results_df_unimodal$Lower_CI[row_index]<- conf_interval$conf.interval[1]
+  stf_results_df_unimodal$Upper_CI[row_index]<- conf_interval$conf.interval[2]
 }
 
 ```
@@ -182,17 +167,17 @@ And we need to do the same with for axial distribution
 
 ```{r Results_axial_ind}
 #| warning: false
-results_df_axial <- data.frame(Identificator = uniqueValues_ID,   #create an empty dataframe to store results
-                         test_statistic = numeric(length(uniqueValues_ID)),
-                         p_value = numeric(length(uniqueValues_ID)),
-                         Mean = numeric(length(uniqueValues_ID)),
-                         rho = numeric(length(uniqueValues_ID)),
-                         Lower_CI = numeric(length(uniqueValues_ID)),
-                         Upper_CI = numeric(length(uniqueValues_ID)))
+stf_results_df_axial <- data.frame(Identificator = stf_uniqueValues_ID,   #create an empty dataframe to store results
+                         test_statistic = numeric(length(stf_uniqueValues_ID)),
+                         p_value = numeric(length(stf_uniqueValues_ID)),
+                         Mean = numeric(length(stf_uniqueValues_ID)),
+                         rho = numeric(length(stf_uniqueValues_ID)),
+                         Lower_CI = numeric(length(stf_uniqueValues_ID)),
+                         Upper_CI = numeric(length(stf_uniqueValues_ID)))
 
 # Loop through unique identifiers
-for (i in uniqueValues_ID) {
-  subset_data <- subset(datalong_EmlenInd, Identificator == i) #subsets data for each identificator/each entry in the database
+for (i in stf_uniqueValues_ID) {
+  subset_data <- subset(stf_datalong_EmlenInd, Identificator == i) #subsets data for each identificator/each entry in the database
   IndData <- as.data.frame(as.numeric(unlist(subset_data)))
   IndData <- na.omit(IndData)
   longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count))#repeats the degrees the times we counted already
@@ -213,33 +198,33 @@ for (i in uniqueValues_ID) {
   }
   
   # Assign results to the correct rows
-  row_index <- which(results_df_axial$Identificator == i)
-  results_df_axial$test_statistic[row_index] <- test_statistic
-  results_df_axial$p_value[row_index] <- p_value
-  results_df_axial$Mean[row_index]<- MeanDir_deg
-  results_df_axial$rho[row_index]<-rho_val
-  results_df_axial$Lower_CI[row_index]<- conf_interval$conf.interval[1]
-  results_df_axial$Upper_CI[row_index]<- conf_interval$conf.interval[2]
+  row_index <- which(stf_results_df_axial$Identificator == i)
+  stf_results_df_axial$test_statistic[row_index] <- test_statistic
+  stf_results_df_axial$p_value[row_index] <- p_value
+  stf_results_df_axial$Mean[row_index]<- MeanDir_deg
+  stf_results_df_axial$rho[row_index]<-rho_val
+  stf_results_df_axial$Lower_CI[row_index]<- conf_interval$conf.interval[1]
+  stf_results_df_axial$Upper_CI[row_index]<- conf_interval$conf.interval[2]
 }
 ```
 
 To combine the tables and to know which individuals have axial or unimodal
 
 ```{r}
-combined_df <- bind_rows(results_df_unimodal, results_df_axial, .id = "Table")
+stf_combined_df <- bind_rows(stf_results_df_unimodal, stf_results_df_axial, .id = "Table")
 ```
 
 And now
 
 ```{r}
-results_df <- combined_df %>%
+stf_results_df <- stf_combined_df %>%
   group_by(Identificator) %>%
   slice(which.max(rho)) #Keep the values that are associated with the highest rho val
-results_df <- rename(results_df, Distribution = Table) #Change the column name
-results_df$Distribution[results_df$Distribution=="1"]<-"Unimodal"
-results_df$Distribution[results_df$Distribution=="2"]<-"Axial"
-length(results_df$Distribution)
-table(results_df$Distribution) #to know how many birds have an axial distribution
+stf_results_df <- rename(stf_results_df, Distribution = Table) #Change the column name
+stf_results_df$Distribution[stf_results_df$Distribution=="1"]<-"Unimodal"
+stf_results_df$Distribution[stf_results_df$Distribution=="2"]<-"Axial"
+length(stf_results_df$Distribution)
+table(stf_results_df$Distribution) #to know how many birds have an axial distribution
 ```
 
 Before merging anything, there are some negative values and some values above 360, we can adjust them with the function defined earlier:
@@ -247,39 +232,40 @@ Before merging anything, there are some negative values and some values above 36
 ```{r results360adj}
 #| output: false
 #| include: false
-results_df <- as.data.frame(results_df %>% mutate_all(adjust_360))
+stf_results_df <- as.data.frame(stf_results_df %>% mutate_all(adjust_360))
 ```
 
 We have the results per identificator. Now we merge both tables to have all the data associated to each one of the rings
 
 ```{r mergedEmlen}
-mergedEmlen<-merge(results_df, Emlen_IndData, by = "Identificator") #merge both dataframes by identificator
+stf_mergedEmlen<-merge(stf_results_df, stf_Emlen_IndData, by = "Identificator") #merge both dataframes by identificator
 ```
 
 To check unique values and how many data points a ring has to perform a paired test later
 
 ```{r uniqueValues_Ring}
-uniqueValues_Ring<-unique(mergedEmlen$Ring)
-length(uniqueValues_Ring)
+stf_uniqueValues_Ring<-unique(stf_mergedEmlen$Ring)
+length(stf_uniqueValues_Ring)
 ```
 
 We need to plot each individual as an histogram
 
 ```{r Ind_plot_hist}
+#| warning: false
 ##ADD THE DISTRIBUTION OF EACH BIRD AND THE P-VALUE
-ggplot(aes(x = sector, y = count), data = datalong_EmlenInd)+
+ggplot(aes(x = sector, y = count), data = stf_datalong_EmlenInd)+
     coord_polar(theta = "x", direction = 1)+
     geom_bar(stat = "identity", fill = "maroon4", width = 14)+
     scale_x_continuous("", limits=c(0,360),
                       breaks=seq(0,360-0.001,by=45),
                       labels=c("N", "NE", "E", "SE", "S", "SW", "W", "NW")) +
-    geom_segment(data=mergedEmlen,
+    geom_segment(data=stf_mergedEmlen,
                mapping=aes(y = 0, x = Mean, xend = Mean, 
-                           yend = (rho*max(datalong_EmlenInd$count))),
+                           yend = (rho*max(stf_datalong_EmlenInd$count))),
                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
                color="black", size=0.7)+
-    geom_vline(data=mergedEmlen, aes(xintercept = Lower_CI), linetype="dashed")+
-    geom_vline(data=mergedEmlen, aes(xintercept = Upper_CI), linetype="dashed")+
+    geom_vline(data=stf_mergedEmlen, aes(xintercept = Lower_CI), linetype="dashed")+
+    geom_vline(data=stf_mergedEmlen, aes(xintercept = Upper_CI), linetype="dashed")+
     ggtitle("Circular Plot")+
     facet_grid(Ring~Treatment)+
     theme_minimal()
@@ -342,61 +328,56 @@ ggplot(aes(x = sector, y = count), data = datalong_EmlenInd)+
 to see how many times a ring occours in the dataframe (this is because we need to have the same size if we want to do a paired test)
 
 ```{r occurrences}
-occurrences <- mergedEmlen %>% count(Ring) 
-print(occurrences)
+stf_occurrences <- stf_mergedEmlen %>% count(Ring) 
+print(stf_occurrences)
 ```
 
 I need to know which ones have less than 0.05 of p-value
 
 ```{r}
-less_alpha<-subset(mergedEmlen, p_value>0.05)
-length(less_alpha$Identificator)
+stf_less_alpha<-subset(stf_mergedEmlen, p_value>0.05)
+length(stf_less_alpha$Identificator)
 ```
 
 To delete the indentificators that don't have a significant p-value for Rayleigh test
 
 ```{r}
-mergedEmlen <- subset(mergedEmlen, p_value<0.05)
+stf_mergedEmlen <- subset(stf_mergedEmlen, p_value<0.05)
 ```
 
 Now we can choose the columns to make the tests
 
 ```{r EmlenData_ForTest}
-EmlenData_ForTest<- dplyr::select(mergedEmlen, c("Identificator", "Distribution",
+stf_EmlenData_ForTest<- dplyr::select(stf_mergedEmlen, c("Identificator", "Distribution",
                                                  "rho","p_value", 
                                                  "Mean", "Lower_CI", "Upper_CI",
                                                  "Species", "Treatment","Ring",
-                                                 "BreedingDistribution", "Week"))
+                                                 "BreedingDistribution",
+                                                 "Experiment"))
 ```
 
 ```{r set_y}
-EmlenData_ForTest$y<-0.95
+stf_EmlenData_ForTest$y<-0.95
 ```
 
 And now divide them for treatment
 
 ```{r TreatmentSplit}
-Emlen_capture<-filter(EmlenData_ForTest, Treatment=="capture") #just capture
-Emlen_control<-filter(EmlenData_ForTest, Treatment=="control") #just control
-Emlen_treatment<-filter(EmlenData_ForTest, Treatment=="treatment") #just 24h treatment
+stf_Emlen_control<-filter(stf_EmlenData_ForTest, Treatment=="Control") #just control
+stf_Emlen_treatment<-filter(stf_EmlenData_ForTest, Treatment=="Treatment") #just 24h treatment
 ```
 
 Plot the mean of all individuals in the treatments
 
 ```{r simple_plots}
 #| warning: false
-plot(as.circular(Emlen_capture$Mean, type="angles", units="degrees", template="geographic", zero=0))
-r_cap <- rho.circular(Emlen_capture$Mean, na.rm = FALSE)
-arrows.circular(mean.circular(Emlen_capture$Mean), y=r_cap, length=0.1)
-conf_interval_cap <- confidence_interval(Emlen_capture$Mean, conf.level = 0.95, axial = FALSE)
+plot(as.circular(stf_Emlen_control$Mean, type="angles", units="degrees", template="geographic", zero=0))
+stf_r_con <- rho.circular(stf_Emlen_control$Mean, na.rm = FALSE)
+arrows.circular(mean.circular(stf_Emlen_control$Mean), y=stf_r_con, length=0.1)
 
-plot(as.circular(Emlen_control$Mean, type="angles", units="degrees", template="geographic", zero=0))
-r_con <- rho.circular(Emlen_control$Mean, na.rm = FALSE)
-arrows.circular(mean.circular(Emlen_control$Mean), y=r_con, length=0.1)
-
-plot(as.circular(Emlen_treatment$Mean, type="angles", units="degrees", template="geographic", zero=0))
-r_tre <- rho.circular(Emlen_treatment$Mean, na.rm = FALSE)
-arrows.circular(mean.circular(Emlen_treatment$Mean), y=r_tre, length=0.1)
+plot(as.circular(stf_Emlen_treatment$Mean, type="angles", units="degrees", template="geographic", zero=0))
+stf_r_tre <- rho.circular(stf_Emlen_treatment$Mean, na.rm = FALSE)
+arrows.circular(mean.circular(stf_Emlen_treatment$Mean), y=stf_r_tre, length=0.1)
 
 ```
 
@@ -407,13 +388,13 @@ To calculate the mean for each species we can do the same as we did before for e
 #| output: false
 #| include: false
 
-EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
+stf_EmlenData_sp_Mean<- dplyr::select(stf_mergedEmlen, c("Identificator",
                                                  "Mean", "Species", "Treatment"
                                                  ,"Ring","BreedingDistribution",
-                                                 "Week"))
+                                                 "Experiment"))
 #Unimodal spp
-Results_treat_all_unimodal <- EmlenData_sp_Mean %>%
-  group_by(Treatment, Species) %>%
+stf_Results_treat_all_unimodal <- stf_EmlenData_sp_Mean %>%
+  group_by(Treatment) %>%
   summarize(
     N=length(Mean),
     Lower_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95,
@@ -429,8 +410,8 @@ Results_treat_all_unimodal <- EmlenData_sp_Mean %>%
   )
 
 #Axial per spp
-Results_treat_all_axial <- EmlenData_sp_Mean %>%
-  group_by(Treatment, Species) %>%
+stf_Results_treat_all_axial <- stf_EmlenData_sp_Mean %>%
+  group_by(Treatment) %>%
   summarize(
     N=length(Mean),
     Lower_CI = if (n() > 1) confidence_interval((Mean*2), conf.level = 0.95,
@@ -468,15 +449,15 @@ Results_treat_all_axial <- EmlenData_sp_Mean %>%
 To get if its axial or unimodal the species
 
 ```{r}
-combined_df_all <- bind_rows(Results_treat_all_unimodal, Results_treat_all_axial, .id = "Table")
-Results_treat_all <- combined_df_all %>%
-  group_by(Species, Treatment) %>%
+stf_combined_df_all <- bind_rows(stf_Results_treat_all_unimodal, stf_Results_treat_all_axial, .id = "Table")
+stf_Results_treat_all <- stf_combined_df_all %>%
+  group_by(Treatment) %>%
   slice(which.max(rho_val)) #Keep the values that are associated with the highest rho val
-Results_treat_all <- rename(Results_treat_all, Distribution = Table) #Change the column name
-Results_treat_all$Distribution[Results_treat_all$Distribution=="1"]<-"Unimodal"
-Results_treat_all$Distribution[Results_treat_all$Distribution=="2"]<-"Axial"
-length(Results_treat_all$Distribution)
-table(Results_treat_all$Distribution) #to know how many birds have an axial distribution
+stf_Results_treat_all <- rename(stf_Results_treat_all, Distribution = Table) #Change the column name
+stf_Results_treat_all$Distribution[stf_Results_treat_all$Distribution=="1"]<-"Unimodal"
+stf_Results_treat_all$Distribution[stf_Results_treat_all$Distribution=="2"]<-"Axial"
+length(stf_Results_treat_all$Distribution)
+table(stf_Results_treat_all$Distribution) #to know how many birds have an axial distribution
 ```
 
 To make the negative values positive, I added 360. The values that are above 360 I substracted 360
@@ -484,31 +465,23 @@ To make the negative values positive, I added 360. The values that are above 360
 ```{r res_treatAdj}
 #| warning: false
 # Convert values outside scope to 360 modul
-Results_treat <- as.data.frame(Results_treat_all %>% mutate_all(adjust_360)) 
+stf_Results_treat <- as.data.frame(stf_Results_treat_all %>% mutate_all(adjust_360)) 
 #Keep only > 0.05values
-Results_treat <- subset(Results_treat,
+stf_Results_treat <- subset(stf_Results_treat,
                                p_value < 0.05)
 #Keep only those species with higher N than 12
-Results_treat <- subset(Results_treat, N>12)
-Results_treat <- Results_treat %>% 
+stf_Results_treat <- subset(stf_Results_treat, N>12)
+stf_Results_treat <- stf_Results_treat %>% 
        rename("Mean" = "Mean_avg")
 ```
 
 To plot each species per treatment with the mean value for the species and the confidence intervals for each species
 
 ```{r AllInd_sp}
-#Keep only Robins and Willys
-EmlenData_ForTest_WR<- subset(EmlenData_ForTest, 
-                               Species == "Robin" | Species == "Willow_Warbler")
-
-#Keep only the values higher than 0.05
-# EmlenData_ForTest_WR <- subset(EmlenData_ForTest_WR,
-#                                p_value < 0.05)
-
 #Plot individuals that meet the criteria
-ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest_WR) +
+ggplot(aes(x = Mean, y=y, colour=Species), data=stf_EmlenData_ForTest) +
   geom_point(size = 1.8, alpha=0.5, shape=21, stroke = 0.5, colour = "black",
-             aes(fill=factor(Species)))+
+             aes(fill=factor(Treatment)))+
   coord_polar() +
   scale_x_continuous("", limits=c(0,360),
                       breaks=seq(0,360-0.001,by=90),
@@ -516,12 +489,12 @@ ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest_WR) +
   scale_y_continuous("",limits=c(0,1), breaks=1)+
   geom_hline(yintercept=1)+
   #theme_minimal()+
-  geom_segment(data=Results_treat, 
+  geom_segment(data=stf_Results_treat, 
                mapping=aes(y = 0, xend = Mean, yend = rho_val),
                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
                color="black", size=0.7)+
-  geom_vline(data=Results_treat, aes(xintercept = Lower_CI), linetype="dashed")+
-  geom_vline(data=Results_treat, aes(xintercept = Upper_CI), linetype="dashed")+
+  geom_vline(data=stf_Results_treat, aes(xintercept = Lower_CI), linetype="dashed")+
+  geom_vline(data=stf_Results_treat, aes(xintercept = Upper_CI), linetype="dashed")+
   theme(panel.background = element_rect(fill = NA),
         axis.title.y = element_blank(),
         axis.text.y = element_blank(),
@@ -529,7 +502,7 @@ ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest_WR) +
   ggtitle("Circular Plot") +  
   ylab("")+ 
   xlab("")+
-  facet_wrap(Species~Treatment)
+  facet_wrap(Treatment~Experiment)
 ```
 
 To plot each individual ring witht the mean value and the confidence intervals
@@ -589,27 +562,11 @@ If the assumptions are not met in the data set it is needed to do a watson.wheel
 
 ```{r Watson_Wheeler}
 #| warning: false
-EmlenData_ForTest$Mean<-as.circular(EmlenData_ForTest$Mean, units='degrees', template='geographics', modulo="2pi")
+stf_EmlenData_ForTest$Mean<-as.circular(stf_EmlenData_ForTest$Mean, 
+                                        units='degrees', template='geographics',
+                                        modulo="2pi")
 
-watson.wheeler.test(Mean ~ Treatment, EmlenData_ForTest, na.omit())
-watson.wheeler.test(Mean ~ BreedingDistribution, EmlenData_ForTest, na.omit())
-```
-
-sg
-
-```{r Circular_ANOVA}
-#Make the mean circular
-EmlenData_ForTest_WR$Mean<-as.circular(EmlenData_ForTest_WR$Mean, units='degrees', template='geographics', modulo="2pi")
-#One dataframe for Willys and one for robins for testing the watson
-Willys_df <- subset(EmlenData_ForTest_WR, Species == "Willow_Warbler")
-Robins_df <- subset(EmlenData_ForTest_WR, Species == "Robin")
-```
-
-Now the watson test for Willys and Robins
-
-```{r}
-watson.wheeler.test(Mean ~ Treatment, Willys_df, na.omit())
-watson.wheeler.test(Mean ~ Treatment, Robins_df, na.omit())
+watson.wheeler.test(Mean ~ Treatment, stf_EmlenData_ForTest, na.omit())
 ```
 
 #### Hotelling paired test
@@ -617,24 +574,16 @@ watson.wheeler.test(Mean ~ Treatment, Robins_df, na.omit())
 First lets make a subset for each treatment and change the column names to something distinguishable
 
 ```{r treat_subset}
-Emlen_capture <- Emlen_capture %>%
+stf_Emlen_control <- stf_Emlen_control %>%
   dplyr::select(-c("Treatment", "Identificator")) %>%
-  setnames(old = c("rho", "p_value", "Mean", 
-                  "Lower_CI", "Upper_CI"),
-           new = c("rho_capture", "p_value_capture", "Mean_capture",
-                   "Lower_CI_capture", "Upper_CI_capture"),
-           skip_absent = TRUE)
-
-Emlen_control <- Emlen_control %>%
-  dplyr::select(-c("Treatment", "Identificator", "Species", "Week", "BreedingDistribution", "y")) %>%
   setnames(old = c("rho", "p_value", "Mean", 
                   "Lower_CI", "Upper_CI"),
            new = c("rho_control", "p_value_control", "Mean_control",
                    "Lower_CI_control", "Upper_CI_control"),
            skip_absent = TRUE)
 
-Emlen_treatment <- Emlen_treatment %>%
-  dplyr::select(-c("Treatment", "Identificator", "Species", "Week", "BreedingDistribution", "y")) %>%
+stf_Emlen_treatment <- stf_Emlen_treatment %>%
+  dplyr::select(-c("Treatment", "Identificator", "Species", "BreedingDistribution", "y")) %>%
   setnames(old = c("rho", "p_value", "Mean", 
                   "Lower_CI", "Upper_CI"),
            new = c("rho_treatment", "p_value_treatment", 
@@ -645,31 +594,27 @@ Emlen_treatment <- Emlen_treatment %>%
 Now we can intersect all of the rings and make a table suitable for the hotelling test
 
 ```{r common_ids}
-common_ids <- Reduce(intersect, list(Emlen_capture$Ring, Emlen_control$Ring, Emlen_treatment$Ring))
+stf_common_ids <- Reduce(intersect, list(stf_Emlen_control$Ring, stf_Emlen_treatment$Ring))
 ```
 
 To retrieve the Rings that have capture, control and treatment experiments
 
 ```{r Emlen_ID}
-Emlen_capture_ID <- Emlen_capture[Emlen_capture$Ring %in% common_ids, ]
-Emlen_control_ID <- Emlen_control[Emlen_control$Ring %in% common_ids, ]
-Emlen_treatment_ID <- Emlen_treatment[Emlen_treatment$Ring %in% common_ids, ]
+stf_Emlen_control_ID <- stf_Emlen_control[stf_Emlen_control$Ring %in% stf_common_ids, ]
+stf_Emlen_treatment_ID <- stf_Emlen_treatment[stf_Emlen_treatment$Ring %in% stf_common_ids, ]
 ```
 
 And to merge a database for making the Hotelling test
 
 ```{r hotelling_db}
-Emlen_hotelling <- merge(Emlen_capture_ID, Emlen_control_ID, by="Ring") %>%
-              merge(Emlen_treatment_ID, by="Ring")
+stf_Emlen_hotelling <- merge(stf_Emlen_control_ID, stf_Emlen_treatment_ID, by="Ring")
 ```
 
 Now we run three paired hotelling test because I dont found how else do it
 
 ```{r paired_hotelling}
 source("https://raw.githubusercontent.com/olitroski/circular/master/paired.hotelling.r") #para correr el hotelling test. p.value<0.05 there are differences between the mean in the samples
-paired.hotelling(Emlen_hotelling$Mean_capture, Emlen_hotelling$Mean_control)
-paired.hotelling(Emlen_hotelling$Mean_capture, Emlen_hotelling$Mean_treatment)
-paired.hotelling(Emlen_hotelling$Mean_control, Emlen_hotelling$Mean_treatment)
+paired.hotelling(stf_Emlen_hotelling$Mean_control, stf_Emlen_hotelling$Mean_treatment)
 ```
 
 And Hotelling for the Willys and Robins
