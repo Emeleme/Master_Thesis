@@ -587,38 +587,88 @@ How much is the angular change between the two means that are different (capture
 
 ```{r Angular_diff}
 Emlen_hotelling$Angular_diff_CC <- (Emlen_hotelling$Mean_control-Emlen_hotelling$Mean_capture)
-#Angular_diff_CC <- adjust_360(Angular_diff_CC)
-#Emlen_hotelling$Angular_diff_CC <- as.circular(Emlen_hotelling$Angular_diff_CC,units='degrees', template='geographics', modulo="2pi")
-
 Emlen_hotelling$Angular_diff_CT <- (Emlen_hotelling$Mean_treatment-Emlen_hotelling$Mean_control)
-#Angular_diff_CT <- adjust_360(Angular_diff_CT)
-#Emlen_hotelling$Angular_diff_CT <- as.circular(Emlen_hotelling$Angular_diff_CT,units='degrees', template='geographics', modulo="2pi")
-
 Emlen_hotelling$Angular_diff_CapT <- (Emlen_hotelling$Mean_treatment-Emlen_hotelling$Mean_capture)
-#Angular_diff_CapT <- adjust_360(Angular_diff_CapT)
-#Emlen_hotelling$Angular_diff_CapT <- as.circular(Emlen_hotelling$Angular_diff_CapT,units='degrees', template='geographics', modulo="2pi")
 ```
 
 And now we can make a little plot with this information to see if all the individuals are changing in the same degree the orientation across groups
 
-CALCULATE MEAN FOR ALL AND THE RHO AND CI TO PLOT THEM HERE TOO
-
 ```{r Angular_plot}
-plot(Emlen_hotelling$Angular_diff_CC)
-abline(h=0)
-plot(Emlen_hotelling$Angular_diff_CT)
-abline(h=0)
-plot(Emlen_hotelling$Angular_diff_CapT)
-abline(h=0)
+ggplot(Emlen_hotelling, aes(x=Mean_control, y=Mean_capture, colour=Species))+
+  geom_point()+
+  geom_abline(intercept=0, slope=1)
 
-# plot(Emlen_hotelling$Angular_diff_CC, main = "Angular change capture vs control", points.plot=TRUE, xlim=c(-1.5,1), ylim=c(-1.1, 1.5))
-# arrows.circular(mean.circular(Emlen_hotelling$Angular_diff_CC), length=0.1)
-# 
-# plot(Emlen_hotelling$Angular_diff_CT, main = "Angular change control vs treatment", points.plot=TRUE, xlim=c(-1.5,1), ylim=c(-1.1, 1.5))
-# arrows.circular(mean.circular(Emlen_hotelling$Angular_diff_CT), length=0.1)
-# 
-# plot(Emlen_hotelling$Angular_diff_CapT, main = "Angular change capture vs treatment", points.plot=TRUE, xlim=c(-1.5,1), ylim=c(-1.1, 1.5))
-# arrows.circular(mean.circular(Emlen_hotelling$Angular_diff_CapT), length=0.1)
+ggplot(Emlen_hotelling, aes(x=Mean_treatment, y=Mean_control, colour=Species))+
+  geom_point()+
+  geom_abline(intercept=0, slope=1)
+
+ggplot(Emlen_hotelling, aes(x=Mean_treatment, y=Mean_capture, colour=Species))+
+  geom_point()+
+  geom_abline(intercept=0, slope=1)
+```
+
+Angular difference for robins
+
+```{r Angular_plot_R}
+ggplot(Emlen_hotelling_R, aes(x=Mean_control, y=Mean_capture))+
+  geom_point(colour="blue")+
+  geom_abline(intercept=0, slope=1)
+
+ggplot(Emlen_hotelling_R, aes(x=Mean_treatment, y=Mean_control))+
+  geom_point(colour="blue")+
+  geom_abline(intercept=0, slope=1)
+
+ggplot(Emlen_hotelling_R, aes(x=Mean_treatment, y=Mean_capture))+
+  geom_point(colour="blue")+
+  geom_abline(intercept=0, slope=1)
+```
+
+Angular difference for Willys
+
+```{r Angular_plot_W}
+ggplot(Emlen_hotelling_W, aes(x=Mean_control, y=Mean_capture))+
+  geom_point(colour="red")+
+  geom_abline(intercept=0, slope=1)
+
+ggplot(Emlen_hotelling_W, aes(x=Mean_treatment, y=Mean_control))+
+  geom_point(colour="red")+
+  geom_abline(intercept=0, slope=1)
+
+ggplot(Emlen_hotelling_W, aes(x=Mean_treatment, y=Mean_capture))+
+  geom_point(colour="red")+
+  geom_abline(intercept=0, slope=1)
+```
+
+And now the plot with two spp on it
+
+```{r Angular_plot_WR}
+ggplot(aes(x = Mean, y=y, colour=Treatment), data=EmlenData_ForTest_WR) +
+  geom_point(size = 1.8, alpha=0.5, shape=21, stroke = 0.5, colour = "black",
+             aes(fill=factor(Treatment)))+
+  coord_polar() +
+  scale_x_continuous("", limits=c(0,360),
+                      breaks=seq(0,360-0.001,by=90),
+                      labels=c("N","E","S","W")) +
+  scale_y_continuous("",limits=c(0,1), breaks=1)+
+  geom_hline(yintercept=1)+
+  #theme_minimal()+
+  geom_segment(data=Results_treat, 
+               mapping=aes(y = 0, xend = Mean, yend = rho_val, colour=Treatment),
+                  arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
+               #color="black", 
+               size=0.7)+
+  geom_vline(data=Results_treat, aes(xintercept = Lower_CI, colour=Treatment), 
+             linetype="dashed")+
+  geom_vline(data=Results_treat, aes(xintercept = Upper_CI, colour=Treatment), 
+             linetype="dashed")+
+  theme(panel.background = element_rect(fill = NA),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())+
+  ggtitle("Circular Plot") +  
+  ylab("")+ 
+  xlab("")+
+  facet_wrap(vars(Species))
 ```
 
 ## GLMER
