@@ -44,7 +44,9 @@ library(visreg)
 library(emmeans)
 ```
 
-## Emlen funnel analysis
+## Emlen funnel analysis (Old fashion)
+
+### Data set up
 
 Lets read the table with the Emlen data
 
@@ -122,7 +124,7 @@ datalong_EmlenInd<-pivot_longer( #makes it a frequency to rep after
 
 We can make proportions out of the count data to plot it later
 
-```{r}
+```{r count_prop}
 datalong_EmlenInd$sector<- as.numeric(datalong_EmlenInd$sector)
 datalong_EmlenInd$count_prop<-datalong_EmlenInd$count/datalong_EmlenInd$TotalScratches
 ```
@@ -132,6 +134,8 @@ Lets save the all the numbers in one variable to make a new table with the
 ```{r uniqueIdent}
 uniqueValues_ID<-unique(datalong_EmlenInd$Identificator)
 ```
+
+### Distributions
 
 This is a really important piece of code because I'm going to store the statistics results for each individual experiment of unimodal
 
@@ -225,13 +229,13 @@ for (i in uniqueValues_ID) {
 
 To combine the tables and to know which individuals have axial or unimodal
 
-```{r}
+```{r combined_df}
 combined_df <- bind_rows(results_df_unimodal, results_df_axial, .id = "Table")
 ```
 
 And now
 
-```{r}
+```{r results_df}
 results_df <- combined_df %>%
   group_by(Identificator) %>%
   slice(which.max(rho)) #Keep the values that are associated with the highest rho val
@@ -286,59 +290,6 @@ ggplot(aes(x = sector, y = count), data = datalong_EmlenInd)+
 
 ```
 
-```{r}
-# pdf("plot_ind_Species.pdf", onefile=TRUE)
-# species_unique <- unique(datalong_EmlenInd$Species)
-# for(i in species_unique) {
-#   dat_count <- subset(datalong_EmlenInd, Species==species_unique[i])
-#   dat_mean <- subset(mergedEmlen, Species==species_unique[i])
-#   p1<-ggplot(aes(x = sector, y = count), data = dat_count)+
-#     coord_polar(theta = "x", direction = 1)+
-#     geom_bar(stat = "identity", fill = "maroon4", width = 14)+
-#     scale_x_continuous("", limits=c(0,360),
-#                       breaks=seq(0,360-0.001,by=45),
-#                       labels=c("N", "NE", "E", "SE", "S", "SW", "W", "NW")) +
-#     geom_segment(data=dat_mean,
-#                mapping=aes(y = 0, x = Mean, xend = Mean, 
-#                            yend = (test_statistic*max(dat_count$count))),
-#                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
-#                color="black", size=0.7)+
-#     geom_vline(data=dat_mean, aes(xintercept = Lower_CI), linetype="dashed")+
-#     geom_vline(data=dat_mean, aes(xintercept = Upper_CI), linetype="dashed")+
-#     ggtitle("Circular Plot: ",i)+
-#     facet_grid(Ring~Treatment)+
-#     theme_minimal()
-#   print(p1)
-# }
-# dev.off()
-
-# pdf("plot_ind_Species.pdf", height=45, width=30, onefile=TRUE)
-# datalong_EmlenInd<-as.data.frame(datalong_EmlenInd)
-# species_unique <- as.vector(unique(datalong_EmlenInd$Species))
-# for(i in 1:length(species_unique)) {
-#   dat_count <- filter(datalong_EmlenInd, Species==species_unique[i])
-#   dat_mean <- filter(mergedEmlen, Species==species_unique[i])
-#   p1<-ggplot(aes(x = sector, y = count), data = dat_count)+
-#     coord_polar(theta = "x", direction = 1)+
-#     geom_bar(stat = "identity", fill = "maroon4", width = 14)+
-#     scale_x_continuous("", limits=c(0,360),
-#                       breaks=seq(0,360-0.001,by=45),
-#                       labels=c("N", "NE", "E", "SE", "S", "SW", "W", "NW")) +
-#     geom_segment(data=dat_mean,
-#                mapping=aes(y = 0, x = Mean, xend = Mean, 
-#                            yend = (test_statistic*max(dat_count$count))),
-#                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
-#                color="black", size=0.7)+
-#     geom_vline(data=dat_mean, aes(xintercept = Lower_CI), linetype="dashed")+
-#     geom_vline(data=dat_mean, aes(xintercept = Upper_CI), linetype="dashed")+
-#     ggtitle("Circular Plot: ",i)+
-#     facet_grid(Ring~Treatment)+
-#     theme_minimal()
-#   print(p1)
-# }
-# dev.off()
-```
-
 to see how many times a ring occours in the dataframe (this is because we need to have the same size if we want to do a paired test)
 
 ```{r occurrences}
@@ -348,16 +299,18 @@ print(occurrences)
 
 I need to know which ones have less than 0.05 of p-value
 
-```{r}
+```{r less_alpha}
 less_alpha<-subset(mergedEmlen, p_value>0.05)
 length(less_alpha$Identificator)
 ```
 
 To delete the indentificators that don't have a significant p-value for Rayleigh test
 
-```{r}
+```{r merged_significant}
 mergedEmlen <- subset(mergedEmlen, p_value<0.05)
 ```
+
+### Tests
 
 Now we can choose the columns to make the tests
 
@@ -444,30 +397,11 @@ Results_treat_all_axial <- EmlenData_sp_Mean %>%
     Mean_avg = rad2deg(mean.circular(deg2rad(Mean*2))),
     rho_val = rho.circular(deg2rad(Mean*2))
   )
-
-# View(Results_treat_all)
-
-
-# EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
-#                                                  "Mean", "Species", "Treatment","Ring",
-#                                                  "BreedingDistribution", "Week"))
-# Results_treat <- EmlenData_sp_Mean %>%
-#   group_by(Treatment, Species) %>%
-#   summarize(
-#     Lower_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[1] else NA,
-#     Upper_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95, axial = FALSE)$conf.interval[2] else NA,
-#     test_statistic = rayleigh_test(deg2rad(Mean))$statistic,
-#     p_value = rayleigh_test(deg2rad(Mean))$p.value,
-#     Mean = rad2deg(mean.circular(deg2rad(Mean)))
-#   )
-# 
-# View(Results_treat)
-
 ```
 
 To get if its axial or unimodal the species
 
-```{r}
+```{r combined_df_all}
 combined_df_all <- bind_rows(Results_treat_all_unimodal, Results_treat_all_axial, .id = "Table")
 Results_treat_all <- combined_df_all %>%
   group_by(Species, Treatment) %>%
@@ -532,54 +466,6 @@ ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest_WR) +
   facet_wrap(Species~Treatment)
 ```
 
-To plot each individual ring witht the mean value and the confidence intervals
-
-```{r AllInds}
-# ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
-#   geom_point(size = 3, alpha=1/2)+
-#   coord_polar() +
-#   scale_x_continuous("", limits=c(0,360),
-#                       breaks=seq(0,360-0.001,by=90),
-#                       labels=c("N","E","S","W")) +
-#          scale_y_continuous("",limits=c(0,1), breaks=1)+
-#   geom_hline(yintercept=1)+
-#   theme(panel.background = element_rect(fill = NA),
-#         axis.title.y = element_blank(),
-#         axis.text.y = element_blank(),
-#         axis.ticks.y = element_blank())+
-#   ggtitle("Circular Plot") +  
-#   ylab("")+ 
-#   xlab("")+
-#   facet_wrap(vars(Ring))
-# 
-# 
-# ggplot(aes(x = Mean, y=y, colour=Species), data=EmlenData_ForTest) +
-#   geom_point(size = 1.8, alpha=1, shape=21, stroke = 0.5, colour = "black", 
-#              aes(fill=factor(Species)))+
-#   coord_polar() +
-#   scale_x_continuous("", limits=c(0,360),
-#                       breaks=seq(0,360-0.001,by=90),
-#                       labels=c("N","E","S","W")) +
-#          scale_y_continuous("",limits=c(0,1), breaks=1)+
-#   geom_hline(yintercept=1)+
-#   #theme_minimal()+
-#   geom_segment(data=results_df, 
-#                mapping=aes(y = 0, xend = Mean, yend = test_statistic),
-#                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")), color="black", size=0.7)+
-#   geom_vline(data=results_df, aes(xintercept = Lower_CI))+
-#   geom_vline(data=results_df, aes(xintercept = Upper_CI))+
-#   theme(panel.background = element_rect(fill = NA),
-#         axis.title.y = element_blank(),
-#         axis.text.y = element_blank(),
-#         axis.ticks.y = element_blank())+
-#   ggtitle("Circular Plot") +  
-#   ylab("")+ 
-#   xlab("")+
-#   facet_wrap(vars(Ring))
-```
-
-### Tests
-
 #### Watson test
 
 To test whether the mean values for each group differ between groups we can do a watson test. R help documentation says:\
@@ -597,7 +483,7 @@ watson.wheeler.test(Mean ~ BreedingDistribution, EmlenData_ForTest, na.omit())
 
 sg
 
-```{r Circular_ANOVA}
+```{r EmlenData_ForTest_WR}
 #Make the mean circular
 EmlenData_ForTest_WR$Mean<-as.circular(EmlenData_ForTest_WR$Mean, units='degrees', template='geographics', modulo="2pi")
 #One dataframe for Willys and one for robins for testing the watson
@@ -607,7 +493,7 @@ Robins_df <- subset(EmlenData_ForTest_WR, Species == "Robin")
 
 Now the watson test for Willys and Robins
 
-```{r}
+```{r watson_spp}
 watson.wheeler.test(Mean ~ Treatment, Willys_df, na.omit())
 watson.wheeler.test(Mean ~ Treatment, Robins_df, na.omit())
 ```
@@ -674,14 +560,14 @@ paired.hotelling(Emlen_hotelling$Mean_control, Emlen_hotelling$Mean_treatment)
 
 And Hotelling for the Willys and Robins
 
-```{r}
+```{r hotelling_spp}
 Emlen_hotelling_W <- subset(Emlen_hotelling, Species =="Willow_Warbler")
 Emlen_hotelling_R <- subset(Emlen_hotelling, Species =="Robin")
 ```
 
 The test for Willys
 
-```{r}
+```{r hotellingTreat_Willys}
 paired.hotelling(Emlen_hotelling_W$Mean_capture, Emlen_hotelling_W$Mean_control)
 paired.hotelling(Emlen_hotelling_W$Mean_capture, Emlen_hotelling_W$Mean_treatment)
 paired.hotelling(Emlen_hotelling_W$Mean_control, Emlen_hotelling_W$Mean_treatment)
@@ -689,7 +575,7 @@ paired.hotelling(Emlen_hotelling_W$Mean_control, Emlen_hotelling_W$Mean_treatmen
 
 The test for Robins
 
-```{r}
+```{r hotellingTreat_Robin}
 paired.hotelling(Emlen_hotelling_R$Mean_capture, Emlen_hotelling_R$Mean_control)
 paired.hotelling(Emlen_hotelling_R$Mean_capture, Emlen_hotelling_R$Mean_treatment)
 paired.hotelling(Emlen_hotelling_R$Mean_control, Emlen_hotelling_R$Mean_treatment)
@@ -735,7 +621,9 @@ abline(h=0)
 # arrows.circular(mean.circular(Emlen_hotelling$Angular_diff_CapT), length=0.1)
 ```
 
-#### GLMER
+## GLMER
+
+### All species
 
 We saw that for the means of means there's a difference between the control and treatment and between control and capture. But these approaches only uses the means, to model all the points in the emlen funnel experiments we can use glmer as follows.
 
@@ -757,13 +645,15 @@ Then, to calculate the distribution of the counts vector we can use:
 descdist(Emlen_glmer$count,  discrete = FALSE)
 ```
 
-```{r}
+```{r histEmlenCount}
 hist(Emlen_glmer$count)
 ```
 
 And now the models
 
-```{r}
+#### Emlen_lmer_Ring
+
+```{r Emlen_lmer_Ring}
 Emlen_lmer_Ring <- glmer(count ~ sin(radians) + cos(radians) + (1|Ring) + 
                            (1|Species), data = Emlen_glmer,
                          na.action = 'na.fail', family="poisson")
@@ -777,19 +667,20 @@ FUN_RevTrans_pez <- function(x){
 }
 visreg(Emlen_lmer_Ring, "radians", trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_Ring, cov.keep= c('radians'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
+gr_all_Ring <- emmeans::ref_grid(Emlen_lmer_Ring, cov.keep= c('radians'))
+emm_DS_all_Ring <- emmeans::emmeans(gr_all_Ring, spec= c('radians'), level= 0.95)
+pairs_all_Ring<-as.data.frame(pairs(emm_DS_all_Ring, adjust=NULL))
+emm_DS_DF_all_Ring <- as.data.frame(emm_DS_all_Ring)
 
 ggplot() +
   #coord_polar()+
   geom_point(data=Emlen_glmer, aes(x=rad2deg(radians), y=count),alpha=0.35,
                           colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
+  geom_ribbon(data= data.frame(emm_DS_all_Ring), 
               aes(x = rad2deg(radians), ymin= FUN_RevTrans_pez(asymp.LCL), 
                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
               alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
+  geom_line(data = data.frame(emm_DS_all_Ring), 
             aes(x = rad2deg(radians), y = FUN_RevTrans_pez(emmean)), linewidth = 1)
 
 emmeans(Emlen_lmer_Ring, list(pairwise ~ radians), adjust="tukey")
@@ -798,7 +689,7 @@ emmeans(Emlen_lmer_Ring, list(pairwise ~ radians), adjust="tukey")
 
 Model comparison
 
-```{r}
+```{r null_mod1}
 null_Emlen_lmer_Ring <- glmer(count ~ 1 + (1|Ring) + 
                            (1|Species), data = Emlen_glmer,
                          na.action = 'na.fail', family="poisson")
@@ -808,11 +699,13 @@ anova(Emlen_lmer_Ring, null_Emlen_lmer_Ring, test="LTR")
 
 model performance
 
-```{r}
+```{r perform_mod1}
 model_performance(Emlen_lmer_Treatment) 
 ```
 
-```{r}
+#### Emlen_lmer_Treatment
+
+```{r Emlen_lmer_Treatment}
 Emlen_lmer_Treatment <- glmer(count ~ sin(radians)*Treatment + 
                            cos(radians)*Treatment + (1|Ring) + 
                              (1|Species), data = Emlen_glmer,
@@ -824,18 +717,18 @@ fam.pez <- family(Emlen_lmer_Treatment)
 
 visreg(Emlen_lmer_Treatment, "radians", by='Treatment', trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_Treatment, cov.keep= c('radians', 'Treatment'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Treatment'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
+gr_all_treat <- emmeans::ref_grid(Emlen_lmer_Treatment, cov.keep= c('radians', 'Treatment'))
+emm_DS_all_treat <- emmeans::emmeans(gr_all_treat, spec= c('radians', 'Treatment'), level= 0.95)
+emm_DS_DF_all_treat <- as.data.frame(emm_DS_all_treat)
 
 ggplot() +
   #coord_polar()+
   geom_point(data=Emlen_glmer, aes(x=radians, y=count, colour=Species),alpha=0.3)+
-  geom_ribbon(data= data.frame(emm_DS), 
+  geom_ribbon(data= data.frame(emm_DS_all_treat), 
               aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), 
                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
               alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
+  geom_line(data = data.frame(emm_DS_all_treat), 
             aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
   facet_wrap(vars(Treatment))
 
@@ -844,17 +737,19 @@ emmeans(Emlen_lmer_Treatment, list(pairwise ~ radians:Treatment), adjust="tukey"
 
 model comparison
 
-```{r}
+```{r null_mod2}
 anova(Emlen_lmer_Ring, Emlen_lmer_Treatment, null_Emlen_lmer_Ring, test="LTR")
 ```
 
 model performance
 
-```{r}
+```{r perform_mod2}
 model_performance(Emlen_lmer_Treatment) 
 ```
 
-```{r}
+#### Emlen_lmer_TreatmentBreed
+
+```{r Emlen_lmer_TreatmentBreed}
 Emlen_lmer_TreatmentBreed <- glmer(count ~ sin(radians)*Treatment*BreedingDistribution + 
                            cos(radians)*Treatment*BreedingDistribution + (1|Ring) + 
                            (1|Species), data = Emlen_glmer,
@@ -866,20 +761,28 @@ fam.pez <- family(Emlen_lmer_TreatmentBreed)
 
 #visreg(Emlen_lmer_TreatmentBreed, "radians", by=c('Treatment','BreedingDistribution'), trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_TreatmentBreed, cov.keep= c('radians', 'Treatment', 'BreedingDistribution'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Treatment', 'BreedingDistribution'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
+gr_all_treatBreed <- emmeans::ref_grid(Emlen_lmer_TreatmentBreed, 
+                                       cov.keep= c('radians', 'Treatment',
+                                                   'BreedingDistribution'))
+emm_DS_all_treatBreed <- emmeans::emmeans(gr_all_treatBreed, 
+                                          spec= c('radians', 'Treatment',
+                                                  'BreedingDistribution'),
+                                          level= 0.95)
+emm_DS_DF_all_treatBreed <- as.data.frame(emm_DS_all_treatBreed)
 
 ggplot() +
   #coord_polar()+
-  geom_point(data=Emlen_glmer, aes(x=radians, y=count, colour=BreedingDistribution),
+  geom_point(data=Emlen_glmer, aes(x=radians, y=count, 
+                                   colour=BreedingDistribution),
              alpha=0.35)+
-  geom_ribbon(data= data.frame(emm_DS),
+  geom_ribbon(data= data.frame(emm_DS_all_treatBreed),
               aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL),
-                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL, colour=BreedingDistribution),
+                  ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL, 
+                  colour=BreedingDistribution),
               alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS),
-            aes(x = radians, y = FUN_RevTrans_pez(emmean), colour=BreedingDistribution), linewidth = 1)+
+  geom_line(data = data.frame(emm_DS_all_treatBreed),
+            aes(x = radians, y = FUN_RevTrans_pez(emmean), 
+                colour=BreedingDistribution), linewidth = 1)+
   facet_wrap(vars(Treatment))
 
 # ggplot() +
@@ -894,25 +797,28 @@ ggplot() +
 #             aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
 #   facet_grid(Treatment~BreedingDistribution)
 
-emmeans(Emlen_lmer_TreatmentBreed, list(pairwise ~ radians:Treatment*BreedingDistribution), adjust="tukey")
+emmeans(Emlen_lmer_TreatmentBreed, 
+        list(pairwise ~ radians:Treatment*BreedingDistribution), adjust="tukey")
 ```
 
 model comparison
 
-```{r}
+```{r null_mod3}
 anova(Emlen_lmer_TreatmentBreed, Emlen_lmer_Ring, Emlen_lmer_Treatment,
       null_Emlen_lmer_Ring, test="LTR")
 ```
 
 model performance
 
-```{r}
+```{r perform_mod3}
 model_performance(Emlen_lmer_TreatmentBreed)
 ```
 
-Robins
+### Robins
 
-```{r Robin_glmer1}
+#### Emlen_lmer_Ring_Robin
+
+```{r Emlen_lmer_Ring_Robin}
 Emlen_glmer_Robins<- dplyr::filter(Emlen_glmer, Species=="Robin")
 
 Emlen_lmer_Ring_Robin <- glmer(count ~ sin(radians) + cos(radians) + (1|Ring),
@@ -925,25 +831,25 @@ fam.pez <- family(Emlen_lmer_Ring_Robin)
 
 visreg(Emlen_lmer_Ring_Robin, "radians", trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_Ring_Robin, cov.keep= c('radians'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
+gr_R_Ring <- emmeans::ref_grid(Emlen_lmer_Ring_Robin, cov.keep= c('radians'))
+emm_DS_R_Ring <- emmeans::emmeans(gr_R_Ring, spec= c('radians'), level= 0.95)
+emm_DS_DF_R_Ring <- as.data.frame(emm_DS_R_Ring)
 
 ggplot() +
   #coord_polar()+
   geom_point(data=Emlen_glmer, aes(x=rad2deg(radians), y=count),alpha=0.35,
                           colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
+  geom_ribbon(data= data.frame(emm_DS_R_Ring), 
               aes(x = rad2deg(radians), ymin= FUN_RevTrans_pez(asymp.LCL), 
                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
               alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
+  geom_line(data = data.frame(emm_DS_R_Ring), 
             aes(x = rad2deg(radians), y = FUN_RevTrans_pez(emmean)), linewidth = 1)
 ```
 
 Model comparison
 
-```{r}
+```{r null_mod1_R}
 null_Emlen_lmer_Ring_Robin <- glmer(count ~ 1 + (1|Ring), 
                                     data = Emlen_glmer_Robins,
                          na.action = 'na.fail', family="poisson")
@@ -953,13 +859,13 @@ anova(Emlen_lmer_Ring_Robin, null_Emlen_lmer_Ring_Robin, test="LTR")
 
 Model performance
 
-```{r}
+```{r perform_mod1_R}
 model_performance(Emlen_lmer_Ring_Robin)
 ```
 
-second
+#### Emlen_lmer_Treatment_Robin
 
-```{r Robin_glmer2}
+```{r Emlen_lmer_Treatment_Robin}
 
 Emlen_lmer_Treatment_Robin <- glmer(count ~ sin(radians)*Treatment + 
                            cos(radians)*Treatment + (1|Ring),
@@ -970,41 +876,47 @@ check_model(Emlen_lmer_Treatment_Robin)
 plot(DHARMa::simulateResiduals(Emlen_lmer_Treatment_Robin)) 
 fam.pez <- family(Emlen_lmer_Treatment_Robin)
 
-visreg(Emlen_lmer_Treatment_Robin, "radians", by='Treatment', trans = FUN_RevTrans_pez)
+visreg(Emlen_lmer_Treatment_Robin, "radians", by='Treatment', 
+       trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_Treatment_Robin, cov.keep= c('radians', 'Treatment'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Treatment'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
+gr_R_Treat <- emmeans::ref_grid(Emlen_lmer_Treatment_Robin,
+                                cov.keep= c('radians', 'Treatment'))
+emm_DS_R_Treat <- emmeans::emmeans(gr_R_Treat, spec= c('radians', 'Treatment'),
+                                   level= 0.95)
+emm_DS_DF_R_Treat <- as.data.frame(emm_DS_R_Treat)
 
 ggplot() +
   #coord_polar()+
   geom_point(data=Emlen_glmer, aes(x=radians, y=count, colour=),alpha=0.35, 
              colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
+  geom_ribbon(data= data.frame(emm_DS_R_Treat), 
               aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), 
                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
               alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
+  geom_line(data = data.frame(emm_DS_R_Treat), 
             aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
   facet_wrap(vars(Treatment))
 
-emmeans(Emlen_lmer_Treatment_Robin, list(pairwise ~ radians:Treatment), adjust="tukey")
+emmeans(Emlen_lmer_Treatment_Robin, list(pairwise ~ radians:Treatment), 
+        adjust="tukey")
 ```
 
 model comparison
 
-```{r}
+```{r null_mod2_R}
 anova(Emlen_lmer_Ring_Robin, null_Emlen_lmer_Ring_Robin, 
       Emlen_lmer_Treatment_Robin, test="LTR")
 ```
 
 model performance
 
-```{r}
+```{r perform_mod2_R}
 model_performance(Emlen_lmer_Treatment_Robin)
 ```
 
-Willys
+### Willys
+
+#### Emlen_lmer_Ring_Willys
 
 ```{r Willys_glmer1}
 Emlen_glmer_Willys<- dplyr::filter(Emlen_glmer, Species=="Willow_Warbler")
@@ -1018,25 +930,25 @@ fam.pez <- family(Emlen_lmer_Ring_Willys)
 
 visreg(Emlen_lmer_Ring_Willys, "radians", trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_Ring_Willys, cov.keep= c('radians'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
+gr_W_Ring <- emmeans::ref_grid(Emlen_lmer_Ring_Willys, cov.keep= c('radians'))
+emm_DS_W_Ring <- emmeans::emmeans(gr_W_Ring, spec= c('radians'), level= 0.95)
+emm_DS_DF_W_Ring <- as.data.frame(emm_DS_W_Ring)
 
 ggplot() +
   #coord_polar()+
   geom_point(data=Emlen_glmer, aes(x=rad2deg(radians), y=count),alpha=0.35,
                           colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
+  geom_ribbon(data= data.frame(emm_DS_W_Ring), 
               aes(x = rad2deg(radians), ymin= FUN_RevTrans_pez(asymp.LCL), 
                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
               alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
+  geom_line(data = data.frame(emm_DS_W_Ring), 
             aes(x = rad2deg(radians), y = FUN_RevTrans_pez(emmean)), linewidth = 1)
 ```
 
 model comparison
 
-```{r}
+```{r null_mod1_W}
 null_Emlen_lmer_Ring_Willys <- glmer(count ~ 1 + (1|Ring), 
                                     data = Emlen_glmer_Willys,
                          na.action = 'na.fail', family="poisson")
@@ -1046,11 +958,11 @@ anova(Emlen_lmer_Ring_Willys, null_Emlen_lmer_Ring_Willys, test="LTR")
 
 model performance
 
-```{r}
+```{r perform_mod1_W}
 model_performance(Emlen_lmer_Ring_Willys)
 ```
 
-second
+#### Emlen_lmer_Treatment_Willys
 
 ```{r Willys_glmer2}
 Emlen_lmer_Treatment_Willys <- glmer(count ~ sin(radians)*Treatment + 
@@ -1062,36 +974,40 @@ check_model(Emlen_lmer_Treatment_Willys)
 plot(DHARMa::simulateResiduals(Emlen_lmer_Treatment_Willys)) 
 fam.pez <- family(Emlen_lmer_Treatment_Willys)
 
-visreg(Emlen_lmer_Treatment_Willys, "radians", by='Treatment', trans = FUN_RevTrans_pez)
+visreg(Emlen_lmer_Treatment_Willys, "radians", by='Treatment', 
+       trans = FUN_RevTrans_pez)
 
-gr <- emmeans::ref_grid(Emlen_lmer_Treatment_Willys, cov.keep= c('radians', 'Treatment'))
-emm_DS <- emmeans::emmeans(gr, spec= c('radians', 'Treatment'), level= 0.95)
-emm_DS_DF <- as.data.frame(emm_DS)
+gr_W_Treat <- emmeans::ref_grid(Emlen_lmer_Treatment_Willys, 
+                                cov.keep= c('radians', 'Treatment'))
+emm_DS_W_Treat <- emmeans::emmeans(gr_W_Treat, spec= c('radians', 'Treatment'),
+                                   level= 0.95)
+emm_DS_DF_W_Treat <- as.data.frame(emm_DS_W_Treat)
 
 ggplot() +
   #coord_polar()+
   geom_point(data=Emlen_glmer, aes(x=radians, y=count),alpha=0.35, 
              colour="lightblue")+
-  geom_ribbon(data= data.frame(emm_DS), 
+  geom_ribbon(data= data.frame(emm_DS_W_Treat), 
               aes(x = radians, ymin= FUN_RevTrans_pez(asymp.LCL), 
                   ymax= FUN_RevTrans_pez(asymp.UCL), y= NULL),
               alpha=0.5, fill= 'grey80') +
-  geom_line(data = data.frame(emm_DS), 
+  geom_line(data = data.frame(emm_DS_W_Treat), 
             aes(x = radians, y = FUN_RevTrans_pez(emmean)), linewidth = 1)+
   facet_wrap(vars(Treatment))
 
-emmeans(Emlen_lmer_Treatment_Willys, list(pairwise ~ radians:Treatment), adjust="tukey")
+emmeans(Emlen_lmer_Treatment_Willys, list(pairwise ~ radians:Treatment), 
+        adjust="tukey")
 ```
 
 model comparison
 
-```{r}
+```{r null_mod2_W}
 anova(Emlen_lmer_Ring_Willys, null_Emlen_lmer_Ring_Willys,
       Emlen_lmer_Treatment_Willys, test="LTR")
 ```
 
 model performance
 
-```{r}
+```{r perform_mod2_W}
 model_performance(Emlen_lmer_Treatment_Willys)
 ```
