@@ -107,7 +107,7 @@ stf_datalong_EmlenInd<-pivot_longer( #makes it a frequency to rep after
 
 We can make proportions out of the count data to plot it later
 
-```{r}
+```{r count_prop}
 stf_datalong_EmlenInd$sector<- as.numeric(stf_datalong_EmlenInd$sector)
 stf_datalong_EmlenInd$count_prop<-stf_datalong_EmlenInd$count/stf_datalong_EmlenInd$TotalScratches
 ```
@@ -210,14 +210,14 @@ for (i in stf_uniqueValues_ID) {
 
 To combine the tables and to know which individuals have axial or unimodal
 
-```{r}
+```{r stf_combined_df}
 stf_combined_df <- bind_rows(stf_results_df_unimodal, 
                              stf_results_df_axial, .id = "Table")
 ```
 
 And now
 
-```{r}
+```{r stf_results_df}
 stf_results_df <- stf_combined_df %>%
   group_by(Identificator) %>%
   slice(which.max(rho)) #Keep the values that are associated with the highest rho val
@@ -249,7 +249,7 @@ stf_uniqueValues_Ring<-unique(stf_mergedEmlen$Ring)
 length(stf_uniqueValues_Ring)
 ```
 
-We need to plot each individual as an histogram
+We need to plot each individual as an rose diagram
 
 ```{r Ind_plot_hist}
 #| warning: false
@@ -273,7 +273,7 @@ ggplot(aes(x = sector, y = count), data = stf_datalong_EmlenInd)+
 
 ```
 
-```{r}
+```{r PDF_ind}
 # pdf("plot_ind_Species.pdf", onefile=TRUE)
 # species_unique <- unique(datalong_EmlenInd$Species)
 # for(i in species_unique) {
