@@ -1,0 +1,271 @@
+---
+title: "Stensoffa_WeightFat"
+author: "Maria Laura Mahecha Escobar"
+format: pdf
+editor: visual
+---
+
+## 
+
+## Data Set up
+
+Libraries we need
+
+```{r libraries}
+library(stringr) 
+library(ggplot2) 
+library(ggpubr) 
+library(usethis) #To use github
+library(knitr) #to use markdown
+library(rmarkdown) #to use markdown
+library(quarto) #to use markdown
+library(lmerTest) #to do random effect tests
+library(lme4) #to do random effect tests
+library(dplyr) #managing tables and organizing data
+library(janitor)
+library(tvthemes)
+library(phytools) #managing phylogenetic approaches
+library(bpnreg) #circular regression models
+library(CircStats) #some useful circular functions
+library(RSQLite) #to connect database reades
+library(data.table) #to handle tables
+library(tidyr)
+library(readr)
+library(performance)
+library(tectonicr)
+library(wesanderson)
+library(fitdistrplus)
+library(visreg)
+library(emmeans)
+```
+
+First set directory
+
+```{r Directory}
+#| include: false  
+setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/Autumn/Stensoffa/Stensoffa_activity_copia/2023_Robin_MariaLaura")
+```
+
+Now import the dataset
+
+```{r Mass_df}
+#| output: false 
+#| include: false 
+stf_Mass_data<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/Weight_Autumn.txt", dec=",", h=T)
+```
+
+We can plot the mass of the individuals across days per spp
+
+```{r plot_basic_mass}
+ggplot(stf_Mass_data, aes(x=ExperimentalDay, y=Mass, colour=Treatment))+  
+  geom_point()+   geom_smooth(method='lm')
+```
+
+We can also see the body condition (mass/wing length)
+
+```{r plot_basi_cond}
+ggplot(stf_Mass_data, aes(x=ExperimentalDay, y=BodyCond, colour=Treatment))+   
+  geom_point()+   
+  geom_smooth(method='lm')
+```
+
+And to check that body condition can be used instead of mass
+
+```{r BodyCond_Mass_plot}
+ggplot(stf_Mass_data, aes(x=Mass, y=BodyCond, colour=Treatment))+  
+  geom_point()
+```
+
+Lets check the normality of bodycond
+
+```{r}
+hist(stf_Mass_data$BodyCond)
+shapiro.test(stf_Mass_data$BodyCond)
+```
+
+### Lmer
+
+#### BodyCond\~Treat
+
+```{r mass_mod1}
+Mass_mod1_stf<-lmer(BodyCond ~ Treatment + (1|Ring), data= stf_Mass_data,
+                na.action = na.exclude)
+
+check_model(Mass_mod1_stf)
+
+summary(Mass_mod1_stf)
+
+mean_Mass_mod1_stf<-emmeans(Mass_mod1_stf, ~Treatment)
+mean_Mass_mod1_stf
+
+pairs(mean_Mass_mod1_stf)
+
+gr_Mass_mod1_stf <- ref_grid(Mass_mod1_stf, cov.keep=c("Treatment"))
+gr_emmeans_Mass_mod1_stf<-as.data.frame(emmeans(gr_Mass_mod1_stf, 
+                                            specs = c("Treatment"), 
+                                            level=0.95))
+
+mean_Mass_mod1_stf<- as.data.frame(mean_Mass_mod1_stf)
+
+raw_Mass_mod1_stf <- stf_Mass_data[c("Treatment", "BodyCond")]  
+
+plot_data_Mass_mod1_stf <- merge(gr_emmeans_Mass_mod1_stf, raw_Mass_mod1_stf,
+                        by = c("Treatment")) 
+
+ggplot(mean_Mass_mod1_stf, aes(x = Treatment, y = emmean)) +
+  geom_jitter(data = plot_data_Mass_mod1_stf, aes(x = Treatment, y = BodyCond),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                 position = position_dodge2(width = 1), size=1)+
+  #facet_wrap(vars(Species))+
+  #labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  #ggtitle("Activity across the day per experiment")+
+  theme_bw()
+
+model_performance(Mass_mod1_stf)
+
+null_mass_mod1_stf<- lmer(BodyCond ~ 1 + (1|Ring), 
+                        data= stf_Mass_data,
+                na.action = na.exclude)
+anova(Mass_mod1_stf, null_mass_mod1_stf, test="LTR")
+```
+
+#### BodyCond\~Treatment\*ExperimentalDay
+
+```{r}
+Mass_mod2_stf<-lmer(BodyCond ~ Treatment*ExperimentalDay + (1|Ring), data= stf_Mass_data,
+                na.action = na.exclude)
+
+check_model(Mass_mod2_stf)
+
+summary(Mass_mod2_stf)
+
+mean_Mass_mod2_stf<-emmeans(Mass_mod2_stf, ~Treatment*ExperimentalDay)
+mean_Mass_mod2_stf
+
+pairs(mean_Mass_mod2_stf)
+
+gr_Mass_mod2_stf <- ref_grid(Mass_mod2_stf, cov.keep=
+                               c("Treatment", "ExperimentalDay"))
+gr_emmeans_Mass_mod2_stf<-as.data.frame(emmeans(gr_Mass_mod2_stf, 
+                                            specs = 
+                                              c("Treatment", "ExperimentalDay"), 
+                                            level=0.95))
+
+mean_Mass_mod2_stf<- as.data.frame(mean_Mass_mod2_stf)
+
+raw_Mass_mod2_stf <- stf_Mass_data[c("Treatment", "BodyCond", "ExperimentalDay")]  
+
+plot_data_Mass_mod2_stf <- merge(gr_emmeans_Mass_mod2_stf, raw_Mass_mod2_stf,
+                        by = c("Treatment", "ExperimentalDay")) 
+
+ggplot(gr_emmeans_Mass_mod2_stf, 
+       aes(x = ExperimentalDay, y = emmean, colour=Treatment)) +
+  geom_jitter(data = plot_data_Mass_mod2_stf, 
+              aes(x = ExperimentalDay, y = BodyCond),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5)+
+  geom_line()+
+  facet_wrap(vars(Treatment))+
+  labs(x = "ExperimentalDay", y = "Estimated Marginal Mean") +
+  theme_bw()
+
+model_performance(Mass_mod2_stf)
+
+anova(Mass_mod2_stf, Mass_mod1_stf, null_mass_mod2_stf, test="LTR")
+```
+
+#### FoodEaten\~Treat
+
+```{r mod3_stf}
+Mass_mod3_stf<-lmer(FoodEaten ~ Treatment + (1|Ring), data= stf_Mass_data,
+                na.action = na.exclude)
+
+check_model(Mass_mod3_stf)
+
+summary(Mass_mod3_stf)
+
+mean_Mass_mod3_stf<-emmeans(Mass_mod3_stf, ~Treatment)
+mean_Mass_mod3_stf
+
+pairs(mean_Mass_mod3_stf)
+
+gr_Mass_mod3_stf <- ref_grid(Mass_mod3_stf, cov.keep=c("Treatment"))
+gr_emmeans_Mass_mod3_stf<-as.data.frame(emmeans(gr_Mass_mod3_stf, 
+                                            specs = c("Treatment"), 
+                                            level=0.95))
+
+mean_Mass_mod3_stf<- as.data.frame(mean_Mass_mod3_stf)
+
+raw_Mass_mod3_stf <- stf_Mass_data[c("Treatment", "FoodEaten")]  
+
+plot_data_Mass_mod3_stf <- merge(gr_emmeans_Mass_mod3_stf, raw_Mass_mod3_stf,
+                        by = c("Treatment")) 
+
+ggplot(mean_Mass_mod3_stf, aes(x = Treatment, y = emmean)) +
+  geom_jitter(data = plot_data_Mass_mod3_stf, aes(x = Treatment, y = FoodEaten),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                 position = position_dodge2(width = 1), size=1)+
+  #facet_wrap(vars(Species))+
+  #labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  #ggtitle("Activity across the day per experiment")+
+  theme_bw()
+
+model_performance(Mass_mod3_stf)
+
+null_mass_mod3_stf<- lmer(FoodEaten ~ 1 + (1|Ring), 
+                        data= stf_Mass_data,
+                na.action = na.exclude)
+anova(Mass_mod3_stf, null_mass_mod3_stf, test="LTR")
+```
+
+#### FoodEaten\~Treatment\*ExperimentalDay
+
+```{r mod4}
+Mass_mod4_stf<-lmer(FoodEaten ~ Treatment*ExperimentalDay + (1|Ring),
+                    data= stf_Mass_data,
+                    na.action = na.exclude)
+
+check_model(Mass_mod4_stf)
+
+summary(Mass_mod4_stf)
+
+mean_Mass_mod4_stf<-emmeans(Mass_mod4_stf, ~Treatment*ExperimentalDay)
+mean_Mass_mod4_stf
+
+pairs(mean_Mass_mod4_stf)
+
+gr_Mass_mod4_stf <- ref_grid(Mass_mod4_stf, cov.keep=
+                               c("Treatment", "ExperimentalDay"))
+gr_emmeans_Mass_mod4_stf<-as.data.frame(emmeans(gr_Mass_mod4_stf, 
+                                            specs = 
+                                              c("Treatment", "ExperimentalDay"), 
+                                            level=0.95))
+
+mean_Mass_mod4_stf<- as.data.frame(mean_Mass_mod4_stf)
+
+raw_Mass_mod4_stf <- stf_Mass_data[c("Treatment", "FoodEaten", "ExperimentalDay")]  
+
+plot_data_Mass_mod4_stf <- merge(gr_emmeans_Mass_mod4_stf, raw_Mass_mod4_stf,
+                        by = c("Treatment", "ExperimentalDay")) 
+
+ggplot(gr_emmeans_Mass_mod4_stf, 
+       aes(x = ExperimentalDay, y = emmean, colour=Treatment)) +
+  geom_jitter(data = plot_data_Mass_mod4_stf, 
+              aes(x = ExperimentalDay, y = FoodEaten),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5)+
+  geom_line()+
+  facet_wrap(vars(Treatment))+
+  labs(x = "ExperimentalDay", y = "Estimated Marginal Mean") +
+  theme_bw()
+
+model_performance(Mass_mod4_stf)
+
+anova(Mass_mod4_stf, Mass_mod3_stf, null_mass_mod3_stf, test="LTR")
+```
