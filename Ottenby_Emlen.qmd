@@ -750,7 +750,7 @@ anova(Emlen_lmer_Ring, null_Emlen_lmer_Ring, test="LTR")
 model performance
 
 ```{r perform_mod1}
-model_performance(Emlen_lmer_Treatment) 
+model_performance(Emlen_lmer_Ring) 
 ```
 
 #### Emlen_lmer_Treatment
