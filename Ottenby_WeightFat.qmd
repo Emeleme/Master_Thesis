@@ -1,0 +1,343 @@
+---
+title: "Ottenby_WeightFat"
+author: "Maria Laura Mahecha Escobar"
+format: pdf
+editor: visual
+---
+
+## Data Set up
+
+Libraries we need
+
+```{r libraries}
+library(stringr)
+library(ggplot2)
+library(ggpubr)
+library(lme4)
+```
+
+First set directory
+
+```{r Directory}
+#| include: false 
+setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/Autumn/Stensoffa/Stensoffa_activity_copia/2023_Robin_MariaLaura")
+```
+
+Now import the dataset
+
+```{r Mass_df}
+#| output: false
+#| include: false
+Mass_data<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/Weight_Spring.txt", dec=",", h=T)
+```
+
+We can plot the mass of the individuals across days per spp
+
+```{r plot_basic_mass}
+ggplot(Mass_data, aes(x=ExperimentalDay, y=Mass, colour=Species))+
+  geom_point()+
+  geom_smooth(method='lm')
+```
+
+We can also see the body condition (mass/wing length)
+
+```{r plot_basi_cond}
+ggplot(Mass_data, aes(x=ExperimentalDay, y=BodyCond, colour=Species))+
+  geom_point()+
+  geom_smooth(method='lm')
+```
+
+And to check that body condition can be used instead of mass
+
+```{r BodyCond_Mass_plot}
+ggplot(Mass_data, aes(x=Mass, y=BodyCond, colour=Species))+
+  geom_point()+
+  geom_smooth(method="lm")
+```
+
+And just to check that mass and fat are related. First we calculate the change in mass and the change in fat
+
+```{r Diff_massFat}
+Mass_data$Mass_diff <- c(NA, diff(Mass_data$Mass))
+Mass_data$Fat_diff <- c(NA, diff(Mass_data$Fat))
+```
+
+Now we can plot the difference
+
+```{r plot_diff_MassFat}
+ggplot(Mass_data, aes(x=Fat_diff, y=Mass_diff, colour=Species))+
+  geom_point()+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 0)
+```
+
+### Lmer
+
+#### BodyCond\~Treat
+
+```{r mass_mod1}
+Mass_mod1<-lmer(BodyCond ~ Treatment + (1|Ring) + (1|Species), data= Mass_data,
+                na.action = na.exclude)
+
+check_model(Mass_mod1)
+
+summary(Mass_mod1)
+
+mean_Mass_mod1<-emmeans(Mass_mod1, ~Treatment)
+mean_Mass_mod1
+
+pairs(mean_Mass_mod1)
+
+gr_Mass_mod1 <- ref_grid(Mass_mod1, cov.keep=c("Treatment"))
+gr_emmeans_Mass_mod1<-as.data.frame(emmeans(gr_Mass_mod1, 
+                                            specs = c("Treatment"), 
+                                            level=0.95))
+
+mean_Mass_mod1<- as.data.frame(mean_Mass_mod1)
+
+raw_Mass_mod1 <- Mass_data[c("Treatment", "BodyCond")]  
+
+plot_data_Mass_mod1 <- merge(gr_emmeans_Mass_mod1, raw_Mass_mod1,
+                        by = c("Treatment")) 
+
+ggplot(mean_Mass_mod1, aes(x = Treatment, y = emmean)) +
+  geom_jitter(data = plot_data_Mass_mod1, aes(x = Treatment, y = BodyCond),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                 position = position_dodge2(width = 1), size=1)+
+  #facet_wrap(vars(Species))+
+  #labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  #ggtitle("Activity across the day per experiment")+
+  theme_bw()
+
+model_performance(Mass_mod1)
+
+null_mass_mod1<- lmer(BodyCond ~ 1 + (1|Ring) + (1|Species), data= Mass_data,
+                na.action = na.exclude)
+anova(Mass_mod1, null_mass_mod1, test="LTR")
+```
+
+#### BodyCond\~Treatment\*BreedingDistribution
+
+```{r mass_mod2}
+Mass_mod2<-lmer(BodyCond ~ Treatment*BreedingDistribution + 
+                  (1|Ring) + (1|Species), data= Mass_data,
+                na.action = na.exclude)
+
+check_model(Mass_mod2)
+
+summary(Mass_mod2)
+
+mean_Mass_mod2<-emmeans(Mass_mod2, ~Treatment)
+mean_Mass_mod2
+
+pairs(mean_Mass_mod2)
+
+gr_Mass_mod2 <- ref_grid(Mass_mod2, cov.keep=
+                           c("Treatment", "BreedingDistribution"))
+gr_emmeans_Mass_mod2<-as.data.frame(emmeans(gr_Mass_mod2, 
+                                            specs = c("Treatment",
+                                                      "BreedingDistribution"), 
+                                            level=0.95))
+
+mean_Mass_mod2<- as.data.frame(mean_Mass_mod2)
+
+raw_Mass_mod2 <- Mass_data[c("Treatment", "BodyCond","BreedingDistribution")]  
+
+plot_data_Mass_mod2 <- merge(gr_emmeans_Mass_mod2, raw_Mass_mod2,
+                        by = c("Treatment","BreedingDistribution")) 
+
+ggplot(mean_Mass_mod2, aes(x = Treatment, y = emmean)) +
+  geom_jitter(data = plot_data_Mass_mod2, aes(x = Treatment, y = BodyCond),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                 position = position_dodge2(width = 1), size=1)+
+  facet_wrap(vars(BreedingDistribution))+
+  #labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  #ggtitle("Activity across the day per experiment")+
+  theme_bw()
+
+model_performance(Mass_mod2)
+
+null_mass_mod1<- lmer(BodyCond ~ 1 + (1|Ring) + (1|Species), data= Mass_data,
+                na.action = na.exclude)
+anova(Mass_mod1, Mass_mod2, null_mass_mod1, test="LTR")
+```
+
+## Robins
+
+Set the dataset for Robins
+
+```{r Mass_Robins}
+Mass_data_Robin<- subset(Mass_data, Species=="Robin")
+```
+
+Basic plot
+
+```{r plot_basic_mass_R}
+ggplot(Mass_data_Robin, aes(x=ExperimentalDay, y=Mass))+
+  geom_point()+
+  geom_smooth(method='lm')
+```
+
+Plotting condition
+
+```{r plot_basi_cond_R}
+ggplot(Mass_data_Robin, aes(x=ExperimentalDay, y=BodyCond))+
+  geom_point()+
+  geom_smooth(method='lm')
+```
+
+Check the fat difference against mass change
+
+```{r Diff_massFat_R}
+Mass_data_Robin$Mass_diff <- c(NA, diff(Mass_data_Robin$Mass))
+Mass_data_Robin$Fat_diff <- c(NA, diff(Mass_data_Robin$Fat))
+```
+
+Now plot the difference
+
+```{r plot_diff_MassFat_R}
+ggplot(Mass_data_Robin, aes(x=Fat_diff, y=Mass_diff))+
+  geom_point()+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 0)
+```
+
+### Lmer
+
+#### BodyCond\~Treatment
+
+```{r}
+Mass_mod1_R<-lmer(BodyCond ~ Treatment + (1|Ring), data= Mass_data_Robin,
+                na.action = na.exclude)
+
+check_model(Mass_mod1_R)
+
+summary(Mass_mod1_R)
+
+mean_Mass_mod1_R<-emmeans(Mass_mod1_R, ~Treatment)
+mean_Mass_mod1_R
+
+pairs(mean_Mass_mod1_R)
+
+gr_Mass_mod1_R <- ref_grid(Mass_mod1_R, cov.keep=c("Treatment"))
+gr_emmeans_Mass_mod1_R<-as.data.frame(emmeans(gr_Mass_mod1_R, 
+                                            specs = c("Treatment"), 
+                                            level=0.95))
+
+mean_Mass_mod1_R<- as.data.frame(mean_Mass_mod1_R)
+
+raw_Mass_mod1_R <- Mass_data_Robin[c("Treatment", "BodyCond")]  
+
+plot_data_Mass_mod1_R <- merge(gr_emmeans_Mass_mod1_R, raw_Mass_mod1_R,
+                        by = c("Treatment")) 
+
+ggplot(mean_Mass_mod1_R, aes(x = Treatment, y = emmean)) +
+  geom_jitter(data = plot_data_Mass_mod1_R, aes(x = Treatment, y = BodyCond),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                 position = position_dodge2(width = 1), size=1)+
+  #facet_wrap(vars(Species))+
+  #labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  #ggtitle("Activity across the day per experiment")+
+  theme_bw()
+
+model_performance(Mass_mod1_R)
+
+null_mass_mod1_R<- lmer(BodyCond ~ 1 + (1|Ring), 
+                        data= Mass_data_Robin,
+                na.action = na.exclude)
+anova(Mass_mod1_R, null_mass_mod1_R, test="LTR")
+```
+
+## Willys
+
+Set the dataset for Willys
+
+```{r Mass_Willys}
+Mass_data_Willys <- subset(Mass_data, Species=="Willow_Warbler")
+```
+
+Basi plot
+
+```{r plot_basic_mass_W}
+ggplot(Mass_data_Willys, aes(x=ExperimentalDay, y=Mass))+
+  geom_point()+
+  geom_smooth(method='lm')
+```
+
+ploting condition
+
+```{r plot_basi_cond_W}
+ggplot(Mass_data_Willys, aes(x=ExperimentalDay, y=BodyCond))+
+  geom_point()+
+  geom_smooth(method='lm')
+```
+
+Check the fat difference against mass change
+
+```{r Diff_massFat_W}
+Mass_data_Willys$Mass_diff <- c(NA, diff(Mass_data_Willys$Mass))
+Mass_data_Willys$Fat_diff <- c(NA, diff(Mass_data_Willys$Fat))
+```
+
+Now plot the difference
+
+```{r plot_diff_MassFat_W}
+ggplot(Mass_data_Willys, aes(x=Fat_diff, y=Mass_diff))+
+  geom_point()+
+  geom_hline(yintercept = 0)+
+  geom_vline(xintercept = 0)
+```
+
+### Lmer
+
+#### BodyCond\~Treatment
+
+```{r mass_mod1_W}
+Mass_mod1_W<-lmer(BodyCond ~ Treatment + (1|Ring), data= Mass_data_Willys,
+                na.action = na.exclude)
+
+check_model(Mass_mod1_W)
+
+summary(Mass_mod1_W)
+
+mean_Mass_mod1_W<-emmeans(Mass_mod1_W, ~Treatment)
+mean_Mass_mod1_W
+
+pairs(mean_Mass_mod1_W)
+
+gr_Mass_mod1_W <- ref_grid(Mass_mod1_W, cov.keep=c("Treatment"))
+gr_emmeans_Mass_mod1_W<-as.data.frame(emmeans(gr_Mass_mod1_W, 
+                                            specs = c("Treatment"), 
+                                            level=0.95))
+
+mean_Mass_mod1_W<- as.data.frame(mean_Mass_mod1_W)
+
+raw_Mass_mod1_W <- Mass_data_Willys[c("Treatment", "BodyCond")]  
+
+plot_data_Mass_mod1_W <- merge(gr_emmeans_Mass_mod1_W, raw_Mass_mod1_W,
+                        by = c("Treatment")) 
+
+ggplot(mean_Mass_mod1_W, aes(x = Treatment, y = emmean)) +
+  geom_jitter(data = plot_data_Mass_mod1_W, aes(x = Treatment, y = BodyCond),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                 position = position_dodge2(width = 1), size=1)+
+  #facet_wrap(vars(Species))+
+  #labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  #ggtitle("Activity across the day per experiment")+
+  theme_bw()
+
+model_performance(Mass_mod1_W)
+
+null_mass_mod1_W<- lmer(BodyCond ~ 1 + (1|Ring), 
+                        data= Mass_data_Willys,
+                na.action = na.exclude)
+anova(Mass_mod1_W, null_mass_mod1_W, test="LTR")
+```
