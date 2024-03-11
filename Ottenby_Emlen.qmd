@@ -89,6 +89,7 @@ adjust_360 <- function(x) {
   if (is.numeric(x)) {
     x <- ifelse(!is.na(x) & x < 0, x + 360, x)
     x <- ifelse(!is.na(x) & x > 360, x - 360, x)
+    x <- ifelse(!is.na(x) & x >= 0 | x <= 360, x)
   }
   return(x)
 }
@@ -155,12 +156,13 @@ for (i in uniqueValues_ID) {
   IndData <- as.data.frame(as.numeric(unlist(subset_data)))
   IndData <- na.omit(IndData)
   longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count)) #repeats the degrees the times we counted already
-  conf_interval <- confidence_interval(longdata, conf.level = 0.95, axial = FALSE)
+  conf_interval <- confidence_interval(longdata, 
+                                       conf.level = 0.95, axial = FALSE)
   longdata <- deg2rad(longdata)  # Convert to radians
   rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
   test_statistic <- rayleigh_test$statistic
   p_value <- rayleigh_test$p.value
-  MeanDir<- mean.circular(longdata)
+  MeanDir<- rad2deg(mean.circular(longdata))
   rho_val <- rho.circular(longdata)
   
   
@@ -196,19 +198,21 @@ results_df_axial <- data.frame(Identificator = uniqueValues_ID,   #create an emp
 
 # Loop through unique identifiers
 for (i in uniqueValues_ID) {
-  subset_data <- subset(datalong_EmlenInd, Identificator == i) #subsets data for each identificator/each entry in the database
+  subset_data <- subset(datalong_EmlenInd, Identificator == i)
   IndData <- as.data.frame(as.numeric(unlist(subset_data)))
   IndData <- na.omit(IndData)
-  longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count))#repeats the degrees the times we counted already
-  longdata <- longdata*2 #Double the angles to test for axial distribution
-  conf_interval <- confidence_interval(longdata, conf.level = 0.95, axial = FALSE)
-  longdata <- deg2rad(longdata)  # Convert to radians
-  rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
+  longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count))
+  longdata <- longdata * 2
+  conf_interval <- confidence_interval(longdata,
+                                       conf.level = 0.95, axial = FALSE)
+  lower_CI <- conf_interval$conf.interval[1]/2
+  upper_CI <- conf_interval$conf.interval[2]/2
+  longdata <- deg2rad(longdata)
+  rayleigh_test <- rayleigh.test(longdata)
   test_statistic <- rayleigh_test$statistic
   p_value <- rayleigh_test$p.value
-  MeanDir<- mean.circular(longdata)
+  MeanDir <- mean.circular(longdata) / 2
   rho_val <- rho.circular(longdata)
-  
   
   # Convert the mean direction from radians to degrees and correct negative values
   MeanDir_deg <- rad2deg(MeanDir)  # Convert to degrees
@@ -216,15 +220,63 @@ for (i in uniqueValues_ID) {
     MeanDir_deg <- 360 + MeanDir_deg  # Wrap around negative values
   }
   
+  # Find closest sector value and corresponding count
+  closest_sector <- subset_data$sector[
+    which.min(abs(subset_data$sector - MeanDir_deg))]
+  max_count <- max(subset_data$count[subset_data$sector == closest_sector])
+  
+  # Find closest sector value and corresponding count for MeanDir + 180
+  closest_sector_p180 <- subset_data$sector[
+    which.min(abs(subset_data$sector - (MeanDir_deg + 180)))]
+  max_count_meanDir_p180 <- max(
+    subset_data$count[subset_data$sector == closest_sector_p180])
+  
+  if (max_count < max_count_meanDir_p180) {
+    MeanDir_deg <- MeanDir_deg + 180
+    lower_CI <- lower_CI + 180
+    upper_CI <- upper_CI + 180
+  }
+  
   # Assign results to the correct rows
   row_index <- which(results_df_axial$Identificator == i)
   results_df_axial$test_statistic[row_index] <- test_statistic
   results_df_axial$p_value[row_index] <- p_value
-  results_df_axial$Mean[row_index]<- MeanDir_deg
-  results_df_axial$rho[row_index]<-rho_val
-  results_df_axial$Lower_CI[row_index]<- conf_interval$conf.interval[1]
-  results_df_axial$Upper_CI[row_index]<- conf_interval$conf.interval[2]
+  results_df_axial$Mean[row_index] <- MeanDir_deg
+  results_df_axial$rho[row_index] <- rho_val
+  results_df_axial$Lower_CI[row_index] <- lower_CI
+  results_df_axial$Upper_CI[row_index] <- upper_CI
 }
+
+# for (i in uniqueValues_ID) {
+#   subset_data <- subset(datalong_EmlenInd, Identificator == i) #subsets data for each identificator/each entry in the database
+#   IndData <- as.data.frame(as.numeric(unlist(subset_data)))
+#   IndData <- na.omit(IndData)
+#   longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count))#repeats the degrees the times we counted already
+#   longdata <- longdata*2 #Double the angles to test for axial distribution
+#   conf_interval <- confidence_interval(longdata, conf.level = 0.95, axial = FALSE)
+#   longdata <- deg2rad(longdata)  # Convert to radians
+#   rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
+#   test_statistic <- rayleigh_test$statistic
+#   p_value <- rayleigh_test$p.value
+#   MeanDir<- rad2deg(mean.circular(longdata))/2
+#   rho_val <- rho.circular(longdata)
+#   
+#   
+#   # Convert the mean direction from radians to degrees and correct negative values
+#   MeanDir_deg <- rad2deg(MeanDir)  # Convert to degrees
+#   if (MeanDir_deg < 0) {
+#     MeanDir_deg <- 360 + MeanDir_deg  # Wrap around negative values
+#   }
+#   
+#   # Assign results to the correct rows
+#   row_index <- which(results_df_axial$Identificator == i)
+#   results_df_axial$test_statistic[row_index] <- test_statistic
+#   results_df_axial$p_value[row_index] <- p_value
+#   results_df_axial$Mean[row_index]<- MeanDir_deg
+#   results_df_axial$rho[row_index]<-rho_val
+#   results_df_axial$Lower_CI[row_index]<- conf_interval$conf.interval[1]/2
+#   results_df_axial$Upper_CI[row_index]<- conf_interval$conf.interval[2]/2
+# }
 ```
 
 To combine the tables and to know which individuals have axial or unimodal
@@ -395,8 +447,27 @@ Results_treat_all_axial <- EmlenData_sp_Mean %>%
     test_statistic = rayleigh_test(deg2rad(Mean*2))$statistic,
     p_value = rayleigh_test(deg2rad(Mean*2))$p.value,
     Mean_avg = rad2deg(mean.circular(deg2rad(Mean*2))),
-    rho_val = rho.circular(deg2rad(Mean*2))
+    rho_val = rho.circular(deg2rad(Mean*2)),
+    Lower_CI = Lower_CI/2+180,
+    Upper_CI = Upper_CI/2+180,
+    Mean_avg = Mean_avg/2
   )
+
+# Results_treat_all_axial <- EmlenData_sp_Mean %>%
+#   group_by(Treatment, Species) %>%
+#   summarize(
+#     N=length(Mean),
+#     Lower_CI = if (n() > 1) confidence_interval((Mean*2), conf.level = 0.95,
+#                                                 axial = FALSE)$conf.interval[1] 
+#     else NA,
+#     Upper_CI = if (n() > 1) confidence_interval((Mean*2), conf.level = 0.95,
+#                                                 axial = FALSE)$conf.interval[2]
+#     else NA,
+#     test_statistic = rayleigh_test(deg2rad(Mean*2))$statistic,
+#     p_value = rayleigh_test(deg2rad(Mean*2))$p.value,
+#     Mean_avg = rad2deg(mean.circular(deg2rad(Mean*2))),
+#     rho_val = rho.circular(deg2rad(Mean*2))
+#   )
 ```
 
 To get if its axial or unimodal the species
