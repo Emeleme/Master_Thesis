@@ -88,8 +88,10 @@ shapiro.test(stf_Mass_data$BodyCond)
 #### BodyCond\~Treat
 
 ```{r mass_mod1}
-Mass_mod1_stf<-lmer(BodyCond ~ Treatment + (1|Ring), data= stf_Mass_data,
-                na.action = na.exclude)
+#MIRAR EL MATERIAL SUPLEMENTARIO DE LOS DUNNOKS PARA VER EL RANDOM INTERCEPT OR SLOPE- CHECK!
+Mass_mod1_stf<-lmer(BodyCond ~ Treatment + (ExperimentalDay|Ring), 
+                    data= stf_Mass_data,
+                    na.action = na.exclude)
 
 check_model(Mass_mod1_stf)
 
@@ -134,8 +136,9 @@ anova(Mass_mod1_stf, null_mass_mod1_stf, test="LTR")
 #### BodyCond\~Treatment\*ExperimentalDay
 
 ```{r}
-Mass_mod2_stf<-lmer(BodyCond ~ Treatment*ExperimentalDay + (1|Ring), data= stf_Mass_data,
-                na.action = na.exclude)
+Mass_mod2_stf<-lmer(BodyCond ~ Treatment*ExperimentalDay + (1|Ring),
+                    data= stf_Mass_data,
+                    na.action = na.exclude)
 
 check_model(Mass_mod2_stf)
 
