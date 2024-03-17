@@ -89,7 +89,7 @@ adjust_360 <- function(x) {
   if (is.numeric(x)) {
     x <- ifelse(!is.na(x) & x < 0, x + 360, x)
     x <- ifelse(!is.na(x) & x > 360, x - 360, x)
-    x <- ifelse(!is.na(x) & x >= 0 | x <= 360, x)
+    x <- ifelse(!is.na(x) & (x >= 0 & x <= 360), x, NA)
   }
   return(x)
 }
@@ -162,7 +162,7 @@ for (i in uniqueValues_ID) {
   rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
   test_statistic <- rayleigh_test$statistic
   p_value <- rayleigh_test$p.value
-  MeanDir<- rad2deg(mean.circular(longdata))
+  MeanDir<- mean.circular(longdata)
   rho_val <- rho.circular(longdata)
   
   
@@ -205,13 +205,13 @@ for (i in uniqueValues_ID) {
   longdata <- longdata * 2
   conf_interval <- confidence_interval(longdata,
                                        conf.level = 0.95, axial = FALSE)
-  lower_CI <- conf_interval$conf.interval[1]/2
-  upper_CI <- conf_interval$conf.interval[2]/2
+  lower_CI <- (conf_interval$conf.interval[1])/2
+  upper_CI <- (conf_interval$conf.interval[2])/2
   longdata <- deg2rad(longdata)
   rayleigh_test <- rayleigh.test(longdata)
   test_statistic <- rayleigh_test$statistic
   p_value <- rayleigh_test$p.value
-  MeanDir <- mean.circular(longdata) / 2
+  MeanDir <- (mean.circular(longdata)) / 2
   rho_val <- rho.circular(longdata)
   
   # Convert the mean direction from radians to degrees and correct negative values
@@ -381,9 +381,9 @@ EmlenData_ForTest$y<-0.95
 And now divide them for treatment
 
 ```{r TreatmentSplit}
-Emlen_capture<-filter(EmlenData_ForTest, Treatment=="capture") #just capture
-Emlen_control<-filter(EmlenData_ForTest, Treatment=="control") #just control
-Emlen_treatment<-filter(EmlenData_ForTest, Treatment=="treatment") #just 24h treatment
+Emlen_capture<-dplyr::filter(EmlenData_ForTest, Treatment=="capture") #just capture
+Emlen_control<-dplyr::filter(EmlenData_ForTest, Treatment=="control") #just control
+Emlen_treatment<-dplyr::filter(EmlenData_ForTest, Treatment=="treatment") #just 24h treatment
 ```
 
 Plot the mean of all individuals in the treatments
@@ -438,19 +438,16 @@ Results_treat_all_axial <- EmlenData_sp_Mean %>%
   group_by(Treatment, Species) %>%
   summarize(
     N=length(Mean),
-    Lower_CI = if (n() > 1) confidence_interval((Mean*2), conf.level = 0.95,
-                                                axial = FALSE)$conf.interval[1] 
+    Lower_CI = if (n() > 1) ((confidence_interval((Mean*2), conf.level = 0.95,
+                                                axial = FALSE)$conf.interval[1])/2)+180 
     else NA,
-    Upper_CI = if (n() > 1) confidence_interval((Mean*2), conf.level = 0.95,
-                                                axial = FALSE)$conf.interval[2]
+    Upper_CI = if (n() > 1) ((confidence_interval((Mean*2), conf.level = 0.95,
+                                                axial = FALSE)$conf.interval[2])/2)+180
     else NA,
     test_statistic = rayleigh_test(deg2rad(Mean*2))$statistic,
     p_value = rayleigh_test(deg2rad(Mean*2))$p.value,
-    Mean_avg = rad2deg(mean.circular(deg2rad(Mean*2))),
-    rho_val = rho.circular(deg2rad(Mean*2)),
-    Lower_CI = Lower_CI/2+180,
-    Upper_CI = Upper_CI/2+180,
-    Mean_avg = Mean_avg/2
+    Mean_avg = (rad2deg(mean.circular(deg2rad(Mean*2))))/2,
+    rho_val = rho.circular(deg2rad(Mean*2))
   )
 
 # Results_treat_all_axial <- EmlenData_sp_Mean %>%
@@ -494,7 +491,7 @@ Results_treat <- as.data.frame(Results_treat_all %>% mutate_all(adjust_360))
 Results_treat <- subset(Results_treat,
                                p_value < 0.05)
 #Keep only those species with higher N than 12
-Results_treat <- subset(Results_treat, N>12)
+Results_treat <- subset(Results_treat, N>10)
 Results_treat <- Results_treat %>% 
        rename("Mean" = "Mean_avg")
 ```
@@ -552,7 +549,22 @@ watson.wheeler.test(Mean ~ Treatment, EmlenData_ForTest, na.omit())
 watson.wheeler.test(Mean ~ BreedingDistribution, EmlenData_ForTest, na.omit())
 ```
 
-sg
+To see how the means are behaving we can make pairwise Watson U tests:
+
+```{r}
+# | warning = False
+Emlen_capture_Sub<-subset(Emlen_capture, BreedingDistribution=="Subpolar") 
+Emlen_control_Sub<-subset(Emlen_control, BreedingDistribution=="Subpolar") 
+Emlen_treatment_Sub<-subset(Emlen_treatment, BreedingDistribution=="Subpolar") 
+Emlen_capture_Pol<-subset(Emlen_capture, BreedingDistribution=="Polar") 
+Emlen_control_Pol<-subset(Emlen_control, BreedingDistribution=="Polar") 
+Emlen_treatment_Pol<-subset(Emlen_treatment, BreedingDistribution=="Polar")
+#between control and treatment
+
+watson.two.test(deg2rad(Emlen_capture_Sub$Mean), deg2rad(Emlen_capture_Pol$Mean), alpha=0.05)
+watson.two.test(deg2rad(Emlen_control_Sub$Mean), deg2rad(Emlen_control_Pol$Mean), alpha=0.05)
+watson.two.test(deg2rad(Emlen_treatment_Sub$Mean), deg2rad(Emlen_treatment_Pol$Mean), alpha=0.05)
+```
 
 ```{r EmlenData_ForTest_WR}
 #Make the mean circular
@@ -650,6 +662,100 @@ The test for Robins
 paired.hotelling(Emlen_hotelling_R$Mean_capture, Emlen_hotelling_R$Mean_control)
 paired.hotelling(Emlen_hotelling_R$Mean_capture, Emlen_hotelling_R$Mean_treatment)
 paired.hotelling(Emlen_hotelling_R$Mean_control, Emlen_hotelling_R$Mean_treatment)
+```
+
+Can we do a moore test?
+
+```{r Moore_func}
+MooreRStats <- function(ldat1, ldat2) {   
+  x <- cos(ldat1)-cos(ldat2) ; y <- sin(ldat1)-sin(ldat2) 
+  r <- sqrt((x*x)+(y*y)) ; Ranks <- rank(r)  
+  cosphi <- x/r ; sinphi <- y/r  
+  return(list(cosphi, sinphi, Ranks))
+} 
+
+MooreRTestStat <- function(cosphi, sinphi, Ranks) { 
+  n <- length(cosphi) 
+  RbarC <- (1/n)*sum(Ranks*cosphi) ; RbarS <- (1/n)*sum(Ranks*sinphi)  
+  Rval <- sqrt(((RbarC*RbarC)+(RbarS*RbarS))/n) ; return(Rval) 
+}  
+
+MooreRTestRand <- function(cosphi, sinphi, Ranks, NR) { 
+  RObs <- MooreRTestStat(cosphi, sinphi, Ranks) ; nxtrm <- 1  
+  n <- length(cosphi)  
+  for (r in 1:NR) {  
+    cosphirand <- 0 ; sinphirand <- 0   
+    for (j in 1:n) {  
+      if (runif(1) < 0.5) { cosphirand[j] <- cosphi[j] ; sinphirand[j] <- sinphi[j] }  
+      else { cosphirand[j] <- -cosphi[j] ; sinphirand[j] <- -sinphi[j] } } 
+    RRand <- MooreRTestStat(cosphirand, sinphirand, Ranks)  
+    if (RRand >= RObs) { nxtrm <- nxtrm+1 } }  
+  pval <- nxtrm/(NR+1) ; return(c(RObs, pval))
+}
+```
+
+```{r Moore_all}
+Moore_CC<- MooreRStats(deg2rad(Emlen_hotelling$Mean_capture), 
+                       deg2rad(Emlen_hotelling$Mean_control)) 
+Moore_CapT<-MooreRStats(deg2rad(Emlen_hotelling$Mean_capture), 
+                        deg2rad(Emlen_hotelling$Mean_treatment))
+Moore_ConT<-MooreRStats(deg2rad(Emlen_hotelling$Mean_control),
+                        deg2rad(Emlen_hotelling$Mean_treatment))
+
+cosphi_CC <- Moore_CC[[1]] ; sinphi_CC <- Moore_CC[[2]]
+Ranks_CC <- Moore_CC[[3]]
+cosphi_CapT<- Moore_CapT[[1]] ; sinphi_CapT <- Moore_CapT[[2]]
+Ranks_CapT <- Moore_CapT[[3]]
+cosphi_ConT <- Moore_ConT[[1]] ; sinphi_ConT <- Moore_ConT[[2]]
+Ranks_ConT <- Moore_ConT[[3]]
+
+MooreRTestRand(cosphi_CC, sinphi_CC, Ranks_CC, 9999)
+MooreRTestRand(cosphi_CapT, sinphi_CapT, Ranks_CapT, 9999)
+MooreRTestRand(cosphi_ConT, sinphi_ConT, Ranks_ConT, 9999)
+```
+
+Moore for Robins
+
+```{r}
+Moore_CC_R<- MooreRStats(deg2rad(Emlen_hotelling_R$Mean_capture), 
+                       deg2rad(Emlen_hotelling_R$Mean_control)) 
+Moore_CapT_R<-MooreRStats(deg2rad(Emlen_hotelling_R$Mean_capture), 
+                        deg2rad(Emlen_hotelling_R$Mean_treatment))
+Moore_ConT_R<-MooreRStats(deg2rad(Emlen_hotelling_R$Mean_control),
+                        deg2rad(Emlen_hotelling_R$Mean_treatment))
+
+cosphi_CC_R <- Moore_CC_R[[1]] ; sinphi_CC_R <- Moore_CC_R[[2]]
+Ranks_CC_R <- Moore_CC_R[[3]]
+cosphi_CapT_R<- Moore_CapT_R[[1]] ; sinphi_CapT_R <- Moore_CapT_R[[2]]
+Ranks_CapT_R <- Moore_CapT_R[[3]]
+cosphi_ConT_R <- Moore_ConT_R[[1]] ; sinphi_ConT_R <- Moore_ConT_R[[2]]
+Ranks_ConT_R <- Moore_ConT_R[[3]]
+
+MooreRTestRand(cosphi_CC_R, sinphi_CC_R, Ranks_CC_R, 9999)
+MooreRTestRand(cosphi_CapT_R, sinphi_CapT_R, Ranks_CapT_R, 9999)
+MooreRTestRand(cosphi_ConT_R, sinphi_ConT_R, Ranks_ConT_R, 9999)
+```
+
+Moore for Willys
+
+```{r}
+Moore_CC_W<- MooreRStats(deg2rad(Emlen_hotelling_W$Mean_capture), 
+                       deg2rad(Emlen_hotelling_W$Mean_control)) 
+Moore_CapT_W<-MooreRStats(deg2rad(Emlen_hotelling_W$Mean_capture), 
+                        deg2rad(Emlen_hotelling_W$Mean_treatment))
+Moore_ConT_W<-MooreRStats(deg2rad(Emlen_hotelling_W$Mean_control),
+                        deg2rad(Emlen_hotelling_W$Mean_treatment))
+
+cosphi_CC_W <- Moore_CC_W[[1]] ; sinphi_CC_W <- Moore_CC_W[[2]]
+Ranks_CC_W <- Moore_CC_W[[3]]
+cosphi_CapT_W<- Moore_CapT_W[[1]] ; sinphi_CapT_W <- Moore_CapT_W[[2]]
+Ranks_CapT_W <- Moore_CapT_W[[3]]
+cosphi_ConT_W <- Moore_ConT_W[[1]] ; sinphi_ConT_W <- Moore_ConT_W[[2]]
+Ranks_ConT_W <- Moore_ConT_W[[3]]
+
+MooreRTestRand(cosphi_CC_W, sinphi_CC_W, Ranks_CC_W, 9999)
+MooreRTestRand(cosphi_CapT_W, sinphi_CapT_W, Ranks_CapT_W, 9999)
+MooreRTestRand(cosphi_ConT_W, sinphi_ConT_W, Ranks_ConT_W, 9999)
 ```
 
 #### Angular difference
