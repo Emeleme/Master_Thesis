@@ -1184,6 +1184,13 @@ model_performance(mod_Exp_meanTotal_s)
 model_performance(mod_ExpBreed_meanTotal)
 model_performance(mod_ExpBreed_meanTotal_s)
 ```
+And the null models performance 
+```{r}
+model_performance(null_mod1)
+model_performance(null_mod3)
+model_performance(null_DayNight)
+```
+
 
 Plotting random effects
 
@@ -1307,6 +1314,18 @@ To check random effects contribution
 ```{r r2_mod1_R}
 model_performance(mod_Exp_meanDayNight_R)
 ```
+model comparison
+
+```{r null_mod1_R}
+# mod_Exp_meanDayNight_R<- lmer(DayNight_activity ~ DayNight * experiment + (1|Ring),
+#                               data = Robin_mean_activity_DayNight, na.action = na.exclude)
+
+null_mod1_R<-lmer(DayNight_activity ~ 1 + (1|Ring),
+                  data = Robin_mean_activity_DayNight, na.action = na.exclude)
+
+anova(null_mod1_R, mod_Exp_meanDayNight_R, test="LTR")
+```
+
 
 ### Model 2: Experiment
 
@@ -1380,6 +1399,17 @@ To check random effects contribution
 ```{r r2_mod2_R}
 model_performance(mod_Exp_meanTotal_R) 
 ```
+model comparison
+
+```{r}
+# mod_Exp_meanTotal_R<- lmer(DayNight_activity ~ experiment + (1|Ring),  
+#                            data = Robin_mean_activity_Total, na.action = na.exclude)
+null_mod3_R<-lmer(DayNight_activity ~ 1 + (1|Ring),
+                  data = Robin_mean_activity_Total, na.action = na.exclude)
+
+anova(null_mod3_R, mod_Exp_meanTotal_R, test="LTR")
+```
+
 
 ## Modeling Willow warblers
 
@@ -1439,7 +1469,6 @@ Here we can see the p-values associated to the model. Have into account that the
 ```{r pairs_mod1_W}
 pairs(mean_mod1_W, adjust=NULL)
 ```
-
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
 ```{r grid_mod1_W}
@@ -1477,6 +1506,15 @@ To check random effects contribution
 
 ```{r r2_mod1_W}
 model_performance(mod_Exp_meanDayNight_W)
+```
+model comparison
+```{r}
+# mod_Exp_meanDayNight_W<- lmer(DayNight_activity ~ DayNight * experiment + (1|Ring),    
+#                               data = Willy_mean_activity_DayNight, na.action = na.exclude)
+null_mod1_W<-lmer(DayNight_activity ~ 1 + (1|Ring),
+                  data = Willy_mean_activity_DayNight, na.action = na.exclude)
+
+anova(null_mod1_W, mod_Exp_meanDayNight_W, test="LTR")
 ```
 
 ### Model 2: Experiment
@@ -1550,6 +1588,15 @@ To check random effects contribution
 
 ```{r r2_mod2_W}
 model_performance(mod_Exp_meanTotal_W) 
+```
+model comparison
+```{r}
+# mod_Exp_meanTotal_W<- lmer(DayNight_activity ~ experiment + (1|Ring),     
+#                            data = Willy_mean_activity_Total, na.action = na.exclude)
+null_mod3_W<-lmer(DayNight_activity ~ 1 + (1|Ring),
+                  data = Willy_mean_activity_Total, na.action = na.exclude)
+
+anova(null_mod3_W, mod_Exp_meanTotal_W, test="LTR")
 ```
 
 ## Actograms
