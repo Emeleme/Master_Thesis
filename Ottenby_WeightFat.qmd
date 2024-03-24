@@ -118,6 +118,51 @@ null_mass_mod1<- lmer(BodyCond ~ 1 + (1|Ring) + (1|Species), data= Mass_data,
 anova(Mass_mod1, null_mass_mod1, test="LTR")
 ```
 
+#### Fat \~ treat
+
+```{r fat_mod1}
+Fat_mod1<-lmer(Fat ~ Treatment + (1|Ring) + (1|Species), data= Mass_data,
+                na.action = na.exclude)
+
+check_model(Fat_mod1)
+
+summary(Fat_mod1)
+
+mean_Fat_mod1<-emmeans(Fat_mod1, ~Treatment)
+mean_Fat_mod1
+
+pairs(mean_Fat_mod1)
+
+gr_Fat_mod1 <- ref_grid(Fat_mod1, cov.keep=c("Treatment"))
+gr_emmeans_Fat_mod1<-as.data.frame(emmeans(gr_Fat_mod1, 
+                                            specs = c("Treatment"), 
+                                            level=0.95))
+
+mean_Fat_mod1<- as.data.frame(mean_Fat_mod1)
+
+raw_Fat_mod1 <- Mass_data[c("Treatment", "Fat")]  
+
+plot_data_Fat_mod1 <- merge(gr_emmeans_Fat_mod1, raw_Fat_mod1,
+                        by = c("Treatment")) 
+
+ggplot(mean_Fat_mod1, aes(x = Treatment, y = emmean)) +
+  geom_jitter(data = plot_data_Fat_mod1, aes(x = Treatment, y = Fat),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                 position = position_dodge2(width = 1), size=1)+
+  #facet_wrap(vars(Species))+
+  #labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  #ggtitle("Activity across the day per experiment")+
+  theme_bw()
+
+model_performance(Fat_mod1)
+
+null_Fat_mod1<- lmer(Fat ~ 1 + (1|Ring) + (1|Species), data= Mass_data,
+                na.action = na.exclude)
+anova(Fat_mod1, null_Fat_mod1, test="LTR")
+```
+
 #### BodyCond\~Treatment\*BreedingDistribution
 
 ```{r mass_mod2}
@@ -129,7 +174,7 @@ check_model(Mass_mod2)
 
 summary(Mass_mod2)
 
-mean_Mass_mod2<-emmeans(Mass_mod2, ~Treatment)
+mean_Mass_mod2<-emmeans(Mass_mod2, ~Treatment*BreedingDistribution)
 mean_Mass_mod2
 
 pairs(mean_Mass_mod2)
@@ -164,6 +209,53 @@ model_performance(Mass_mod2)
 null_mass_mod1<- lmer(BodyCond ~ 1 + (1|Ring) + (1|Species), data= Mass_data,
                 na.action = na.exclude)
 anova(Mass_mod1, Mass_mod2, null_mass_mod1, test="LTR")
+```
+
+#### Fat\~Treatment\*BreedingDistribution
+
+```{r fat_mod2}
+Fat_mod2<-lmer(Fat ~ Treatment*BreedingDistribution + 
+                  (1|Ring) + (1|Species), data= Mass_data)
+
+check_model(Fat_mod2)
+
+summary(Fat_mod2)
+
+mean_Fat_mod2<-emmeans(Fat_mod2, ~ Treatment*BreedingDistribution)
+mean_Fat_mod2
+
+pairs(mean_Fat_mod2)
+
+gr_Fat_mod2 <- ref_grid(Fat_mod2, cov.keep=
+                           c("Treatment", "BreedingDistribution"))
+gr_emmeans_Fat_mod2<-as.data.frame(emmeans(gr_Fat_mod2, 
+                                            specs = c("Treatment",
+                                                      "BreedingDistribution"), 
+                                            level=0.95))
+
+mean_Fat_mod2<- as.data.frame(mean_Fat_mod2)
+
+raw_Fat_mod2 <- Mass_data[c("Treatment", "Fat", "BreedingDistribution")]  
+
+plot_data_Fat_mod2 <- merge(gr_emmeans_Fat_mod2, raw_Fat_mod2,
+                        by = c("Treatment","BreedingDistribution")) 
+
+ggplot(mean_Fat_mod2, aes(x = Treatment, y = emmean)) +
+  geom_jitter(data = plot_data_Fat_mod2, aes(x = Treatment, y = Fat),
+              color="lightgray") +
+  geom_point() +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                 position = position_dodge2(width = 1), size=1)+
+  facet_wrap(vars(BreedingDistribution))+
+  #labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  #ggtitle("Activity across the day per experiment")+
+  theme_bw()
+
+model_performance(Fat_mod2)
+
+null_Fat_mod1<- lmer(Fat ~ 1 + (1|Ring) + (1|Species), data= Mass_data,
+                na.action = na.exclude)
+anova(Fat_mod1, Fat_mod2, null_Fat_mod1, test="LTR")
 ```
 
 ## Robins
