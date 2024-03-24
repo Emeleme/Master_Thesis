@@ -89,7 +89,7 @@ shapiro.test(stf_Mass_data$BodyCond)
 
 ```{r mass_mod1}
 #MIRAR EL MATERIAL SUPLEMENTARIO DE LOS DUNNOKS PARA VER EL RANDOM INTERCEPT OR SLOPE- CHECK!
-Mass_mod1_stf<-lmer(BodyCond ~ Treatment + (ExperimentalDay|Ring), 
+Mass_mod1_stf<-lmer(BodyCond ~ Treatment + (1|Ring), 
                     data= stf_Mass_data,
                     na.action = na.exclude)
 
@@ -158,7 +158,13 @@ gr_emmeans_Mass_mod2_stf<-as.data.frame(emmeans(gr_Mass_mod2_stf,
 
 mean_Mass_mod2_stf<- as.data.frame(mean_Mass_mod2_stf)
 
-raw_Mass_mod2_stf <- stf_Mass_data[c("Treatment", "BodyCond", "ExperimentalDay")]  
+raw_Mass_mod2_stf <- stf_Mass_data[c("Treatment", "BodyCond", "ExperimentalDay")] 
+
+stf_Mass_pval_mod2<-emmeans(gr_Mass_mod2_stf, specs = 
+                              c("Treatment", "ExperimentalDay"),
+                       at = list(Days = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14)),
+                       level=0.95)
+stf_Mass_pval_mod2_df<-as.data.frame(pairs(stf_Mass_pval_mod2, adjust=NULL))
 
 plot_data_Mass_mod2_stf <- merge(gr_emmeans_Mass_mod2_stf, raw_Mass_mod2_stf,
                         by = c("Treatment", "ExperimentalDay")) 
@@ -177,7 +183,7 @@ ggplot(gr_emmeans_Mass_mod2_stf,
 
 model_performance(Mass_mod2_stf)
 
-anova(Mass_mod2_stf, Mass_mod1_stf, null_mass_mod2_stf, test="LTR")
+anova(Mass_mod2_stf, Mass_mod1_stf, null_mass_mod1_stf, test="LTR")
 ```
 
 #### FoodEaten\~Treat
@@ -250,6 +256,12 @@ gr_emmeans_Mass_mod4_stf<-as.data.frame(emmeans(gr_Mass_mod4_stf,
                                             level=0.95))
 
 mean_Mass_mod4_stf<- as.data.frame(mean_Mass_mod4_stf)
+
+stf_FoodE_pval_mod2<-emmeans(gr_Mass_mod4_stf, specs = 
+                              c("Treatment", "ExperimentalDay"),
+                       at = list(Days = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14)),
+                       level=0.95)
+stf_FoodE_pval_mod2_df<-as.data.frame(pairs(stf_FoodE_pval_mod2, adjust=NULL))
 
 raw_Mass_mod4_stf <- stf_Mass_data[c("Treatment", "FoodEaten", "ExperimentalDay")]  
 
