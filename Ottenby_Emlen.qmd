@@ -543,7 +543,8 @@ If the assumptions are not met in the data set it is needed to do a watson.wheel
 
 ```{r Watson_Wheeler}
 #| warning: false
-EmlenData_ForTest$Mean<-as.circular(EmlenData_ForTest$Mean, units='degrees', template='geographics', modulo="2pi")
+#EmlenData_ForTest$Mean<-as.circular(EmlenData_ForTest$Mean, units='degrees', template='geographics', modulo="2pi")
+EmlenData_ForTest$Mean<-as.circular(EmlenData_ForTest$Mean, units='degrees', template='none', modulo="2pi", zero=0)
 
 watson.wheeler.test(Mean ~ Treatment, EmlenData_ForTest, na.omit())
 watson.wheeler.test(Mean ~ BreedingDistribution, EmlenData_ForTest, na.omit())
@@ -559,11 +560,38 @@ Emlen_treatment_Sub<-subset(Emlen_treatment, BreedingDistribution=="Subpolar")
 Emlen_capture_Pol<-subset(Emlen_capture, BreedingDistribution=="Polar") 
 Emlen_control_Pol<-subset(Emlen_control, BreedingDistribution=="Polar") 
 Emlen_treatment_Pol<-subset(Emlen_treatment, BreedingDistribution=="Polar")
-#between control and treatment
+#lets make them circular
+Emlen_capture_Sub$Mean<- as.circular(deg2rad(Emlen_capture_Sub$Mean),
+                                     units='radians', template='none', 
+                                     modulo="2pi", Zero=0)
+Emlen_capture_Pol$Mean<- as.circular(deg2rad(Emlen_capture_Pol$Mean), 
+                                     units='radians', template='geographics', 
+                                     modulo="2pi", zero=0)
+Emlen_control_Sub$Mean<- as.circular(deg2rad(Emlen_control_Sub$Mean),
+                                     units='radians', template='geographics', 
+                                     modulo="2pi", zero=0)
+Emlen_control_Pol$Mean<- as.circular(deg2rad(Emlen_control_Pol$Mean),
+                                     units='radians', template='geographics', 
+                                     modulo="2pi", zero=0)
+Emlen_treatment_Sub$Mean<- as.circular(deg2rad(Emlen_treatment_Sub$Mean),
+                                     units='radians', template='geographics',
+                                     modulo="2pi", zero=0)
+Emlen_treatment_Pol$Mean<- as.circular(deg2rad(Emlen_treatment_Pol$Mean),
+                                     units='radians', template='geographics',
+                                     modulo="2pi", zero=0)
 
-watson.two.test(deg2rad(Emlen_capture_Sub$Mean), deg2rad(Emlen_capture_Pol$Mean), alpha=0.05)
-watson.two.test(deg2rad(Emlen_control_Sub$Mean), deg2rad(Emlen_control_Pol$Mean), alpha=0.05)
-watson.two.test(deg2rad(Emlen_treatment_Sub$Mean), deg2rad(Emlen_treatment_Pol$Mean), alpha=0.05)
+#distribution between treatments
+
+
+watson.two.test((Emlen_capture_Sub$Mean), (Emlen_capture_Pol$Mean), alpha=0.05)
+watson.two.test((Emlen_control_Sub$Mean), (Emlen_control_Pol$Mean), alpha=0.05)
+watson.two.test((Emlen_treatment_Sub$Mean), (Emlen_treatment_Pol$Mean), alpha=0.05)
+
+#mean between treatments
+
+watson.wheeler.test(list(Emlen_capture_Sub$Mean, Emlen_capture_Pol$Mean))
+watson.wheeler.test(list(Emlen_control_Sub$Mean, Emlen_control_Pol$Mean))
+watson.wheeler.test(list(Emlen_treatment_Sub$Mean, Emlen_treatment_Pol$Mean))
 ```
 
 ```{r EmlenData_ForTest_WR}
