@@ -507,8 +507,6 @@ stf_Results_treat_all_axial <- stf_EmlenData_sp_Mean %>%
 
 To get if its axial or unimodal the species
 
-\
-
 ```{r}
 stf_combined_df_all <- bind_rows(stf_Results_treat_all_unimodal, stf_Results_treat_all_axial, .id = "Table")
 stf_Results_treat_all <- stf_combined_df_all %>%
@@ -562,6 +560,88 @@ ggplot(aes(x = Mean, y=y, colour=Species), data=stf_EmlenData_ForTest) +
   ylab("")+ 
   xlab("")+
   facet_wrap(Treatment~Experiment)
+```
+
+Make the pre all into one group
+
+```{r}
+stf_Emlen_pre<-filter(stf_EmlenData_ForTest, Experiment=="1Pre")
+
+stf_Emlen_pre_Mean<- dplyr::select(stf_Emlen_pre, c("Identificator",
+                                                 "Mean", "Species", "Treatment"
+                                                 ,"Ring","BreedingDistribution",
+                                                 "Experiment"))
+#Unimodal spp
+stf_Results_treat_pre_unimodal <- stf_Emlen_pre_Mean %>%
+  group_by(Experiment) %>%
+  summarize(
+    N=length(Mean),
+    Lower_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95,
+                                                axial = FALSE)$conf.interval[1] 
+    else NA,
+    Upper_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95,
+                                                axial = FALSE)$conf.interval[2]
+    else NA,
+    test_statistic = rayleigh_test(deg2rad(Mean))$statistic,
+    p_value = rayleigh_test(deg2rad(Mean))$p.value,
+    Mean_avg = rad2deg(mean.circular(deg2rad(Mean))),
+    rho_val = rho.circular(deg2rad(Mean))
+  )
+
+#Axial per spp
+stf_Results_treat_pre_axial <- stf_Emlen_pre_Mean %>%
+  group_by(Experiment) %>%
+  summarize(
+    N=length(Mean),
+    Lower_CI = if (n() > 1) confidence_interval((Mean*2), conf.level = 0.95,
+                                                axial = TRUE)$conf.interval[1] 
+    else NA,
+    Upper_CI = if (n() > 1) confidence_interval((Mean*2), conf.level = 0.95,
+                                                axial = TRUE)$conf.interval[2]
+    else NA,
+    test_statistic = rayleigh_test(deg2rad(Mean*2))$statistic,
+    p_value = rayleigh_test(deg2rad(Mean*2))$p.value,
+    Mean_avg = rad2deg(mean.circular(deg2rad(Mean*2))),
+    rho_val = rho.circular(deg2rad(Mean*2))
+  )
+```
+
+To plot all pre together
+
+```{r plot_PrePost}
+stf_Results_treat_pre_unimodal<- as.data.frame(stf_Results_treat_pre_unimodal)
+stf_Results_treat_pre_unimodal$Mean_avg<- as.numeric(stf_Results_treat_pre_unimodal$Mean_avg)
+stf_Results_treat_pre_unimodal <- stf_Results_treat_pre_unimodal %>% 
+       rename("Mean" = "Mean_avg")
+
+#Plot individuals that meet the criteria
+ggplot(aes(x = Mean, y=y, colour=Species), data=stf_Emlen_pre) +
+  geom_point(size = 1.8, alpha=0.5, shape=21, stroke = 0.5, colour = "black",
+             aes(fill=factor(Treatment)))+
+  coord_polar() +
+  scale_x_continuous("", limits=c(0,360),
+                      breaks=seq(0,360-0.001,by=90),
+                      labels=c("N","E","S","W")) +
+  scale_y_continuous("",limits=c(0,1), breaks=1)+
+  geom_hline(yintercept=1)+
+  #theme_minimal()+
+  geom_segment(data=stf_Results_treat_pre_unimodal, 
+               mapping=aes(y = 0, xend = Mean, yend = rho_val),
+                  arrow = arrow(type="closed",ends="last",
+                                length=unit(2,"mm")),
+               color="black", size=0.7)+
+  geom_vline(data=stf_Results_treat_pre_unimodal, aes(xintercept = Lower_CI),
+             linetype="dashed")+
+  geom_vline(data=stf_Results_treat_pre_unimodal, aes(xintercept = Upper_CI),
+             linetype="dashed")+
+  theme(panel.background = element_rect(fill = NA),
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank())+
+  ggtitle("Circular Plot") +  
+  ylab("")+ 
+  xlab("")
+#  facet_wrap(vars(Experiment))
 ```
 
 To plot each individual ring witht the mean value and the confidence intervals
