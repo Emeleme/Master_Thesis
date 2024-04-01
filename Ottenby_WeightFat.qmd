@@ -13,6 +13,9 @@ Libraries we need
 library(stringr)
 library(ggplot2)
 library(ggpubr)
+library(emmeans)
+library(performance)
+library(dplyr)
 library(lme4)
 ```
 
