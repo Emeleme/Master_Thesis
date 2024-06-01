@@ -17,6 +17,7 @@ library(emmeans)
 library(performance)
 library(dplyr)
 library(lme4)
+library(ggpmisc)
 ```
 
 First set directory
@@ -72,6 +73,14 @@ ggplot(Mass_data, aes(x=Fat_diff, y=Mass_diff, colour=Species))+
   geom_point()+
   geom_hline(yintercept = 0)+
   geom_vline(xintercept = 0)
+
+ggplot(Mass_data, aes(x=Fat, y=Mass, colour=Species))+
+     geom_point()+
+     geom_hline(yintercept = 0)+
+     geom_vline(xintercept = 0)+
+     stat_poly_line() +
+     stat_poly_eq(use_label(c("adj.R2","p", "n"))) +
+     facet_wrap(vars(Species))
 ```
 
 ### Lmer

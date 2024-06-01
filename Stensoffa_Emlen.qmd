@@ -615,7 +615,7 @@ stf_Results_treat_pre_unimodal <- stf_Results_treat_pre_unimodal %>%
        rename("Mean" = "Mean_avg")
 
 #Plot individuals that meet the criteria
-ggplot(aes(x = Mean, y=y, colour=Species), data=stf_Emlen_pre) +
+ggplot(aes(x = Mean, y=y), data=stf_Emlen_pre) +
   geom_point(size = 1.8, alpha=0.5, shape=21, stroke = 0.5, colour = "black",
              aes(fill=factor(Treatment)))+
   coord_polar() +

@@ -566,7 +566,7 @@ ggplot(stf_data_actogram_raw, aes(x = time, y = date, fill = !!sym(stf_activity)
   facet_wrap(Setup ~ Ring)+
   xlab("Time") +  
   ylab("Date") +  
-  scale_fill_gradient(name = activity_alias, 
+  scale_fill_gradient(name = stf_activity_alias, 
                       low = "darkblue", high = "#FF7F00", na.value = "#FFFFFF")
   
 #Seguir con esto después
