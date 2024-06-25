@@ -788,6 +788,54 @@ paired.hotelling(Emlen_hotelling_T$Mean_pre, Emlen_hotelling_T$Mean_post)
 
 plot the difference
 
+MOORE
+
+```{r}
+MooreRStats <- function(ldat1, ldat2) {   
+  x <- cos(ldat1)-cos(ldat2) ; y <- sin(ldat1)-sin(ldat2) 
+  r <- sqrt((x*x)+(y*y)) ; Ranks <- rank(r)  
+  cosphi <- x/r ; sinphi <- y/r  
+  return(list(cosphi, sinphi, Ranks))
+} 
+
+MooreRTestStat <- function(cosphi, sinphi, Ranks) { 
+  n <- length(cosphi) 
+  RbarC <- (1/n)*sum(Ranks*cosphi) ; RbarS <- (1/n)*sum(Ranks*sinphi)  
+  Rval <- sqrt(((RbarC*RbarC)+(RbarS*RbarS))/n) ; return(Rval) 
+}  
+
+MooreRTestRand <- function(cosphi, sinphi, Ranks, NR) { 
+  RObs <- MooreRTestStat(cosphi, sinphi, Ranks) ; nxtrm <- 1  
+  n <- length(cosphi)  
+  for (r in 1:NR) {  
+    cosphirand <- 0 ; sinphirand <- 0   
+    for (j in 1:n) {  
+      if (runif(1) < 0.5) { cosphirand[j] <- cosphi[j] ; sinphirand[j] <- sinphi[j] }  
+      else { cosphirand[j] <- -cosphi[j] ; sinphirand[j] <- -sinphi[j] } } 
+    RRand <- MooreRTestStat(cosphirand, sinphirand, Ranks)  
+    if (RRand >= RObs) { nxtrm <- nxtrm+1 } }  
+  pval <- nxtrm/(NR+1) ; return(c(RObs, pval))
+}
+```
+
+TEST MOORE
+
+```{r}
+Moore_Control<- MooreRStats(deg2rad(Emlen_hotelling_C$Mean_pre), 
+                       deg2rad(Emlen_hotelling_C$Mean_post)) 
+Moore_Treatment<-MooreRStats(deg2rad(Emlen_hotelling_T$Mean_pre), 
+                        deg2rad(Emlen_hotelling_T$Mean_post))
+
+
+cosphi_Control <- Moore_Control[[1]] ; sinphi_Control <- Moore_Control[[2]]
+Ranks_Control <- Moore_Control[[3]]
+cosphi_Treatment <- Moore_Treatment[[1]] ; sinphi_Treatment <- Moore_Treatment[[2]]
+Ranks_Treatment <- Moore_Treatment[[3]]
+
+MooreRTestRand(cosphi_Control, sinphi_Control, Ranks_Control, 9999)
+MooreRTestRand(cosphi_Treatment, sinphi_Treatment, Ranks_Treatment, 9999)
+```
+
 #### Angular difference
 
 How much is the angular change between the two means that are different (capture and control; control and treatment)? For this I just going to make a substraction between means and plot the difference to see if they change to a similar degree. Values that are higher than 360 are adjust and values that are below 0 are adjust with the function previously described adjust_360
