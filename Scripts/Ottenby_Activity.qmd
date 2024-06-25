@@ -587,8 +587,9 @@ And, finally plotting this model
 ```{r plot_mod1s}
 #| warning: false 
 ggplot(mean_mod1s, aes(x = DayNight, y = emmean, color = experiment)) +
-  geom_jitter(data = plot_data_mod1s, aes(x = DayNight, y = DayNight_activity),
-              color="lightgray") +
+  geom_jitter(data = plot_data_mod1s, 
+              aes(x = DayNight, y = DayNight_activity, color=experiment),
+              alpha=0.3) +
   geom_point(position = position_dodge2(width = 2), size =1.5) +
   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
                  position = position_dodge2(width = 1), size=1)+
@@ -731,15 +732,16 @@ And, finally plotting this model
 ```{r plot_mod2s}
 #| warning: false
 ggplot(mean_mod2s, aes(x = DayNight, y = emmean, color = experiment)) +
-  geom_jitter(data = plot_data_mod2s, aes(x = DayNight, y = DayNight_activity), 
-              color="lightgray") +
-  geom_point(position = position_dodge2(width = 2), size =1.5) +
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
-                 position = position_dodge2(width = 1), size=1)+
-  facet_wrap(vars(BreedingDistribution))+
-  labs(x = "Day/Night", y = "Estimated Marginal Mean") +
-  ggtitle("Activity across the day per experiment")+
-  theme_bw()
+    geom_jitter(data = plot_data_mod2s, 
+                aes(x = DayNight, y = DayNight_activity, color=experiment),
+                alpha = 0.3) +
+    geom_point(position = position_dodge2(width = 2), size =1.5) +
+    geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                   position = position_dodge2(width = 1), size=1)+
+    facet_wrap(vars(BreedingDistribution))+
+    labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+    ggtitle("Activity across the day per experiment")+
+    theme_bw()
 ```
 
 #### Model 2sw: Experiment \* DayNight \* Week + Species as random
