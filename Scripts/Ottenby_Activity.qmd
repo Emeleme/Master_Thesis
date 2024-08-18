@@ -731,8 +731,22 @@ And, finally plotting this model
 
 ```{r plot_mod2s}
 #| warning: false
+# ggplot(mean_mod2s, aes(x = DayNight, y = emmean, color = experiment)) +
+#     geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+#                    position = position_dodge2(width = 1), size=1)+
+#     geom_point(position = position_dodge2(width = 2), size =1.5) +
+#     facet_wrap(vars(BreedingDistribution))+
+#     geom_jitter(data = plot_data_mod2s,
+#                 aes(x = DayNight, y = DayNight_activity, color=experiment),
+#                 alpha = 0.3, 
+#                 position = position_dodge2(width = 1)) +
+#     labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+#     ggtitle("Activity across the day per experiment")+
+#     theme_bw()
+
+
 ggplot(mean_mod2s, aes(x = DayNight, y = emmean, color = experiment)) +
-    geom_jitter(data = plot_data_mod2s, 
+    geom_jitter(data = plot_data_mod2s,
                 aes(x = DayNight, y = DayNight_activity, color=experiment),
                 alpha = 0.3) +
     geom_point(position = position_dodge2(width = 2), size =1.5) +
@@ -1299,17 +1313,26 @@ plot_data_mod1_R <- merge(gr_emmeans_mod1_R, raw_Exp_DayNight_MeanData_R,
 And, finally plotting this model
 
 ```{r plot_mod1_R}
-#| warning: false 
+#| warning: false
 ggplot(mean_mod1_R, aes(x = DayNight, y = emmean, color = experiment)) +  
-  geom_jitter(data = plot_data_mod1_R, aes(x = DayNight, y = DayNight_activity),
-              color="lightgray") +   
+  geom_jitter(data = plot_data_mod1_R, aes(x = DayNight, y = DayNight_activity, color = experiment), alpha = 0.3) +   
   geom_point(position = position_dodge2(width = 2), size =1.5) + 
   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,          
                  position = position_dodge2(width = 1), size=1)+  
   facet_wrap(vars(experiment))+ 
   labs(x = "Day/Night", y = "Estimated Marginal Mean") +  
   ggtitle("Activity across the day per experiment")+ 
-  theme_bw()
+  theme_bw() 
+# ggplot(mean_mod1_R, aes(x = DayNight, y = emmean, color = experiment)) +  
+#   geom_jitter(data = plot_data_mod1_R, aes(x = DayNight, y = DayNight_activity),
+#               color="lightgray") +   
+#   geom_point(position = position_dodge2(width = 2), size =1.5) + 
+#   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,          
+#                  position = position_dodge2(width = 1), size=1)+  
+#   facet_wrap(vars(experiment))+ 
+#   labs(x = "Day/Night", y = "Estimated Marginal Mean") +  
+#   ggtitle("Activity across the day per experiment")+ 
+#   theme_bw()
 ```
 
 To check random effects contribution
@@ -1496,14 +1519,24 @@ And, finally plotting this model
 ```{r plot_mod1_W}
 #| warning: false 
 ggplot(mean_mod1_W, aes(x = DayNight, y = emmean, color = experiment)) +     
-  geom_jitter(data = plot_data_mod1_W, aes(x = DayNight, y = DayNight_activity),  
-              color="lightgray") +   
+  geom_jitter(data = plot_data_mod1_W, aes(x = DayNight, y = DayNight_activity, color = experiment), alpha = 0.3) +   
   geom_point(position = position_dodge2(width = 2), size =1.5) +   
   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,    
                  position = position_dodge2(width = 1), size=1)+  
   facet_wrap(vars(experiment))+    labs(x = "Day/Night", y = "Estimated Marginal Mean") +   
   ggtitle("Activity across the day per experiment")+  
   theme_bw()
+
+
+# ggplot(mean_mod1_W, aes(x = DayNight, y = emmean, color = experiment)) +     
+#   geom_jitter(data = plot_data_mod1_W, aes(x = DayNight, y = DayNight_activity),  
+#               color="lightgray") +   
+#   geom_point(position = position_dodge2(width = 2), size =1.5) +   
+#   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,    
+#                  position = position_dodge2(width = 1), size=1)+  
+#   facet_wrap(vars(experiment))+    labs(x = "Day/Night", y = "Estimated Marginal Mean") +   
+#   ggtitle("Activity across the day per experiment")+  
+#   theme_bw()
 ```
 
 To check random effects contribution
