@@ -242,7 +242,7 @@ activity_pivot <- activity_pivot %>%
   ))
 ```
 
-This is one of those code chunks were it seems that it is not necessary to do all here but if I don't do it nothing runs after
+This is one of those code chunks that seems completely unnecesary. But, I don't run it nothing works after. Thanks R, or thanks uncomplete coding skills(?)
 
 ```{r Whyyy}
 #Make activity database a table
@@ -265,36 +265,36 @@ To have all the activity information per individual ring and species, let's merg
 ```{r Merge_activity}
 #Merge bothe databases to have complete activity information and complete 
 #individual information
+#we need to sort the columns we will use Cage and Week for being the ones we will
+#merge
 setkey(activity_pivot, Cage, Week)
 setkey(complete_thesis_db, Cage, Week)
-
-# merged_activity <- activity_pivot[complete_thesis_db, on=c("Cage", "Week"), 
-#                                   nomatch = 0L] 
+#now merge them
 merged_activity <- activity_pivot[complete_thesis_db, on=c("Cage", "Week")] 
 ```
 
-Lets check how many ring do we have here
+Lets check how many ring do we have here to control what we just did :)
 
 ```{r}
 unique(merged_activity$Ring)
 length(unique(merged_activity$Ring))
 ```
 
-From that database let's delete the data of the capture day and the data that is on "No trial"
+From that database let's delete the data of the capture day and the data that is on "No trial" because is activity data we will not use further.
 
 ```{r Capture-}
-merged_activity <- merged_activity %>% #Delete capture data
+merged_activity <- merged_activity %>% #Delete capture & no trial data
   filter(!experiment %in% c("Capture", "not trial"))
 ```
 
-Lets check how many ring do we have here
+Lets check how many ring do we have here. Again, just to control we did not delete any individual
 
 ```{r}
 length(unique(merged_activity$Ring))
 unique(merged_activity$Ring)
 ```
 
-I also need to delete the data from the last day (day 7) that is after the releasing time (Sunset) because there were no birds in the cages and I was cleaning all night
+I also need to delete the data from the last day (day 7) that is after the releasing time (Sunset) because there were no birds in the cages and I was cleaning all night, so there's a lot of fake bird activity there. Just me moving around jeje
 
 ```{r AfterEmlen-}
 merged_activity <- merged_activity %>% # Delete data from after experiment
@@ -306,7 +306,7 @@ merged_activity <- merged_activity %>% # Delete data from after experiment
 
 ```
 
-Lets check how many ring do we have here
+Lets check how many ring do we have here. I am getting tired of checking this, but I already had problems deleting individual info that I didn't noticed. So let's keep doing it.
 
 ```{r}
 length(unique(merged_activity$Ring))
@@ -353,18 +353,13 @@ feedingtime <- which((merged_activity$time) >= "11:00:00" &
 merged_activity$Activity[feedingtime] <- NA #set feeding time activity values to NA
 ```
 
-Three Willow Warblers does not meet the criteria to be included into the analysis (They fall into the gray zone where northern and southern willow warblers cant be separated). So, I needed to delete them
-
-```{r Willys-}
-# merged_activity <- merged_activity %>% 
-#   filter(!Ring %in% c("DK53569"))
-```
-
 ### Mean and total activity
 
 To calculate the total and mean activity per Day/Night we are going to set all the experimental days the same size.
 
 ```{r ExperimentalDay}
+#Make every day the same size in terms of hours of activity to being able to 
+#compare between days.
 merged_activity <- merged_activity %>%
   mutate(ExperimentalDay = case_when(
     Week == 1 & (DayNumber == 1 & HourDecimal >= 20.183 | 
@@ -440,93 +435,28 @@ merged_activity <- merged_activity %>%
 First lets do the mean activity per Day and Night
 
 ```{r MeanDayNight}
+#Take the mean of the activity during Day or night
 mean_activity_DayNight <- merged_activity %>%
   group_by(Ring, DayNight, Week, experiment, Species, ExperimentalDay, 
            BreedingDistribution) %>%
-  summarise(DayNight_activity = mean(Activity, na.rm = TRUE)) %>%
+  summarise(DayNight_activity = mean(Activity, na.rm = TRUE)) %>% 
   ungroup()
+#This is to check how is the distribution of the activity. 
+#There are a lot of low activity chunks
 hist(mean_activity_DayNight$DayNight_activity, breaks = 1800)
 ```
 
-Now let's calculate the mean activity per day
+Now let's calculate the mean activity per day to have the complete day activity too.
 
 ```{r MeanTotal}
+#Calculate the mean activity per the whole day
 mean_activity_Total <- merged_activity %>%
   group_by(Ring, Week, experiment, Species, ExperimentalDay, 
            BreedingDistribution) %>%
   summarise(DayNight_activity = mean(Activity, na.rm = TRUE)) %>%
   ungroup()
+#To check the distribution of the
 hist(mean_activity_Total$DayNight_activity, breaks=1800)
-```
-
-### Model 1: Experiment \* DayNight
-
-The first random effect lineal model is the interaction between the experiment (control vs treatment) during day and night
-
-```{r mod1}
-mod_Exp_meanDayNight<- lmer(DayNight_activity ~ DayNight * experiment + (1|Ring),
-                            data = mean_activity_DayNight, na.action = na.exclude)
-```
-
-To check the model fits some assumptions
-
-```{r check_mod1, fig.width=7, fig.height=9}
-check_model(mod_Exp_meanDayNight)
-```
-
-And the summary of the model
-
-```{r summary_mod1}
-summary(mod_Exp_meanDayNight)
-```
-
-Lets calculate the means and the confidence intervals for the model
-
-```{r CI_mod1}
-mean_mod1<-emmeans(mod_Exp_meanDayNight, ~DayNight * experiment)
-mean_mod1
-```
-
-Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
-
-```{r pairs_mod1}
-pairs(mean_mod1)
-```
-
-Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
-
-```{r grid_mod1}
-gr_mod1 <- ref_grid(mod_Exp_meanDayNight, cov.keep=c("DayNight","experiment"))
-gr_emmeans_mod1<-as.data.frame(emmeans(gr_mod1, specs = c("DayNight","experiment"), 
-                                       level=0.95))
-```
-
-Now, to define the information we will use to plot the data
-
-```{r db_mod1}
-mean_mod1<- as.data.frame(mean_mod1)
-#Use the DayNight, experiment, and DayNigth_activity columns
-raw_Exp_DayNight_MeanData <- mean_activity_DayNight[
-  c("DayNight", "experiment", "DayNight_activity")]  
-#Merge the columns choosen with the data from the model
-plot_data_mod1 <- merge(gr_emmeans_mod1, raw_Exp_DayNight_MeanData,
-                        by = c("DayNight", "experiment")) 
-```
-
-And, finally plotting this model
-
-```{r plot_mod1}
-#| warning: false
-ggplot(mean_mod1, aes(x = DayNight, y = emmean, color = experiment)) +
-  geom_jitter(data = plot_data_mod1, aes(x = DayNight, y = DayNight_activity),
-              color="lightgray") +
-  geom_point(position = position_dodge2(width = 2), size =1.5) +
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
-                 position = position_dodge2(width = 1), size=1)+
-  facet_wrap(vars(experiment))+
-  labs(x = "Day/Night", y = "Estimated Marginal Mean") +
-  ggtitle("Activity across the day per experiment")+
-  theme_bw()
 ```
 
 #### Model 1s: Experiment \* DayNight + Species as random
@@ -724,38 +654,31 @@ mean_mod2s<-as.data.frame(mean_mod2s)
 raw_ExpDayNightBreed_MeanData_s <- mean_activity_DayNight[
   c("DayNight", "experiment", "DayNight_activity", "BreedingDistribution")]
 plot_data_mod2s <- merge(gr_emmeans_mod2s, raw_ExpDayNightBreed_MeanData_s, 
-                         by = c("DayNight", "experiment"))
+                         by = c("DayNight", "experiment","BreedingDistribution"))
 ```
 
 And, finally plotting this model
 
 ```{r plot_mod2s}
 #| warning: false
-# ggplot(mean_mod2s, aes(x = DayNight, y = emmean, color = experiment)) +
-#     geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
-#                    position = position_dodge2(width = 1), size=1)+
-#     geom_point(position = position_dodge2(width = 2), size =1.5) +
-#     facet_wrap(vars(BreedingDistribution))+
-#     geom_jitter(data = plot_data_mod2s,
-#                 aes(x = DayNight, y = DayNight_activity, color=experiment),
-#                 alpha = 0.3, 
-#                 position = position_dodge2(width = 1)) +
-#     labs(x = "Day/Night", y = "Estimated Marginal Mean") +
-#     ggtitle("Activity across the day per experiment")+
-#     theme_bw()
-
-
 ggplot(mean_mod2s, aes(x = DayNight, y = emmean, color = experiment)) +
-    geom_jitter(data = plot_data_mod2s,
-                aes(x = DayNight, y = DayNight_activity, color=experiment),
-                alpha = 0.3) +
-    geom_point(position = position_dodge2(width = 2), size =1.5) +
-    geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
-                   position = position_dodge2(width = 1), size=1)+
-    facet_wrap(vars(BreedingDistribution))+
-    labs(x = "Day/Night", y = "Estimated Marginal Mean") +
-    ggtitle("Activity across the day per experiment")+
-    theme_bw()
+  geom_jitter(data = plot_data_mod2sMOCK %>% filter(BreedingDistribution == "Polar"),
+              aes(x = DayNight, y = DayNight_activity, color = experiment),
+              alpha = 0.3, 
+              position = position_dodge2(width = 0.6, padding = 0.5)) +  # Polar raw data
+  geom_jitter(data = plot_data_mod2sMOCK %>% filter(BreedingDistribution == "Subpolar"),
+              aes(x = DayNight, y = DayNight_activity, color = experiment),
+              alpha = 0.3, 
+              position = position_dodge2(width = 0.6, padding = 0.5)) +  # Subpolar raw data
+  geom_point(position = position_dodge2(width = 0.6, padding = 0.5), size = 1.5) +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), 
+                 alpha = 0.5,
+                 position = position_dodge2(width = 0.6, padding = 0.5), 
+                 size = 1) +
+  facet_wrap(~BreedingDistribution) +
+  labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  ggtitle("Activity across the day per experiment") +
+  theme_bw()
 ```
 
 #### Model 2sw: Experiment \* DayNight \* Week + Species as random
@@ -1949,3 +1872,16 @@ ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
         axis.line = element_line(size = 0.5))+
   scale_x_discrete(breaks = c("02:10", "06:10", "10:10", "14:10", "18:10", "22:10"))
 ```
+
+## Coding graveyard
+
+*Code that I didn't used but I am absolutely affraid to delete. Even though I am saving every version in GitHub. Talk to me about ineficient axiety. Anyway, enjoy.*
+
+(Before modeling) Three Willow Warblers does not meet the criteria to be included into the analysis (They fall into the gray zone where northern and southern willow warblers cant be separated). So, I needed to delete them.
+
+```{r Willys-}
+merged_activity <- merged_activity %>%  
+  filter(!Ring %in% c("DK53569"))
+```
+
+### 
