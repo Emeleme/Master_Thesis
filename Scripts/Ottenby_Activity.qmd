@@ -455,7 +455,7 @@ mean_activity_Total <- merged_activity %>%
            BreedingDistribution) %>%
   summarise(DayNight_activity = mean(Activity, na.rm = TRUE)) %>%
   ungroup()
-#To check the distribution of the
+#To check the distribution of the 
 hist(mean_activity_Total$DayNight_activity, breaks=1800)
 ```
 
