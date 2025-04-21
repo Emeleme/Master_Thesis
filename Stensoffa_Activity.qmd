@@ -418,16 +418,16 @@ And, finally plotting this model
 
 ```{r plot_mod1}
 #| warning: false 
-ggplot(stf_gr_emmeans_mod1, aes(x = Day, y = emmean, color = DayNight)) +   
-  geom_jitter(data = stf_plot_data_mod1, aes(x = Day, y = DayNight_activity), 
-              color="lightgray") +   
-  geom_point() +   
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,  size=1)+ 
-  geom_line()+
-  facet_grid(vars(Setup))+   
-  labs(x = "Day", y = "Estimated Marginal Mean") +   
-  ggtitle("Daily activity across the experiment per Setup")+   
-  theme_bw()
+ggplot(stf_gr_emmeans_mod1, aes(x = Day, y = emmean, color = DayNight)) +  
+    scale_color_manual(labels = c("Light", "Dark"), values = c("tan3", "gray26"))+
+    geom_jitter(data = stf_plot_data_mod1, aes(x = Day, y = DayNight_activity, color=DayNight), alpha=0.3)+ 
+    geom_point() +   
+    geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,  size=1)+ 
+    geom_line()+
+    facet_grid(vars(Setup))+   
+    labs(x = "Day", y = "Estimated Marginal Mean") +    
+    ggtitle("Daily activity across the experiment per Setup")+   
+    theme_bw()
 ```
 
 Lets chech the r2
@@ -500,14 +500,14 @@ And, finally plotting this model
 ```{r plot_mod3}
 #| warning: false   
 ggplot(stf_gr_emmeans_mod3, aes(x = Day, y = emmean, color=Setup)) +   
-  geom_jitter(data = stf_plot_data_mod3, aes(x = Day, y = DayNight_activity),
-              color="lightgray") +  
-  geom_point() +   
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5, size=1)+  
-  geom_line()+
-  labs(x = "Day", y = "Estimated Marginal Mean") +  
-  ggtitle("Activity per experiment")+  
-  theme_bw()
+    geom_jitter(data = stf_plot_data_mod3, aes(x = Day, y = DayNight_activity, color=Setup),
+                alpha=0.3) +  
+    geom_point() +   
+    geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5, size=1)+  
+    geom_line()+
+    labs(x = "Day", y = "Estimated Marginal Mean") +  
+    ggtitle("Activity per experiment")+  
+    theme_bw()
 ```
 
 Lets chech the r2
