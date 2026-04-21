@@ -8,7 +8,7 @@ format: pdf
 
 This document has the codes and figures generated for Maria Laura's Master thesis - Activity analysis for spring season.
 
-```{r}
+```{r start, message = FALSE, warning = FALSE}
 #| echo: false
 library(knitr)
 opts_chunk$set(fig.align='center', fig.width=6, fig.height=4.2,
@@ -19,7 +19,7 @@ opts_chunk$set(fig.align='center', fig.width=6, fig.height=4.2,
 
 First, these are the libraries used to run this code.
 
-```{r Libraries}
+```{r Libraries, message = FALSE, warning = FALSE}
 #| output: false
 #| warning: false
 
@@ -56,7 +56,7 @@ Now. there are three steps to follow before manipulating any data
 -   Second, connecting to the database .db to get all the raw activity data. I used the dbConnect function and SQLite function from the package RSQLite.
 -   Third, access to the ring and cages database to recall ring numbers for each cage at certain date.
 
-```{r Directory}
+```{r Directory, message = FALSE, warning = FALSE}
 #| output: false
 #| include: false
 setwd(strwrap("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/Activity_Data/Copia"))
@@ -72,14 +72,14 @@ Now we can manipulate the data:
 
 Set the begining and the end dates of the whole spring season
 
-```{r Dates}
+```{r Dates, message = FALSE, warning = FALSE}
 start_date<-"2023-04-20"
 end_date<-"2023-06-01"
 ```
 
 Select only the data that corresponds to the start and end dates from the .db to work with from now
 
-```{r activity}
+```{r activity, message = FALSE, warning = FALSE}
 query<-paste0("SELECT * FROM activity WHERE datetime BETWEEN '", 
               start_date, "' AND '", end_date, "'") #set the query
 activity_complete<- dbGetQuery(con, query) #Get all data from .db
@@ -88,13 +88,13 @@ activity_complete<-as.data.frame(activity_complete) #make it a data frame
 
 In my case, the data had a two hours delay so I added them
 
-```{r 2h}
+```{r 2h, message = FALSE, warning = FALSE}
 activity_complete$datetime<- as.POSIXct(activity_complete$datetime) + (2*60*60) 
 ```
 
 Now I need that the activity data is organized in just one column named "Activity"
 
-```{r act_col}
+```{r act_col, message = FALSE, warning = FALSE}
 activity_pivot <- activity_complete %>% #Activity values in one column
   pivot_longer(cols = c("PirA","PirB","PirC","PirD"),
                names_to = "Pir",
@@ -103,14 +103,14 @@ activity_pivot <- activity_complete %>% #Activity values in one column
 
 Now I need to delete values corresponding to "Vib"
 
-```{r Vib-}
+```{r Vib-, message = FALSE, warning = FALSE}
 activity_pivot<- dplyr::select(activity_pivot, -VibA, -VibB, -VibC, -VibD)
 #Delete Vib values
 ```
 
 Now, it is necessary to put the cages as "1A", "1B", "1C", etc
 
-```{r Cage_name}
+```{r Cage_name, message = FALSE, warning = FALSE}
 activity_pivot$Cage<-paste(substr(activity_pivot$node, 3, 3), 
                            substr(activity_pivot$Pir, 4,4), sep = "") 
 #To put cages names
@@ -118,7 +118,7 @@ activity_pivot$Cage<-paste(substr(activity_pivot$node, 3, 3),
 
 We need to change cage 7A, 7B, 7C and 7D for 3A, 3B, 3C and 3D
 
-```{r Cage_name7}
+```{r Cage_name7, message = FALSE, warning = FALSE}
 
 activity_pivot$Cage[activity_pivot$Cage == "7A"] <- "3A"
 activity_pivot$Cage[activity_pivot$Cage == "7B"] <- "3B"
@@ -137,7 +137,7 @@ Week 5: 25th May to 31th May 2023
 
 The code goes one more day because it doesn't include the last day
 
-```{r Weeks}
+```{r Weeks, message = FALSE, warning = FALSE}
 activity_pivot <- activity_pivot %>%
   mutate(Week = case_when(
     between(datetime, as.Date("2023-04-20"), as.Date("2023-04-27")) ~ 1,
@@ -151,7 +151,7 @@ activity_pivot <- activity_pivot %>%
 
 As the program was running all the time, I need to delete the dates where there were no birds in the cages, defined as week 6 previously
 
-```{r Week6}
+```{r Week6, message = FALSE, warning = FALSE}
 activity_pivot<-subset(activity_pivot, activity_pivot$Week != "6") 
 #Take week 6 away because I just did 5 experiments
 
@@ -159,7 +159,7 @@ activity_pivot<-subset(activity_pivot, activity_pivot$Week != "6")
 
 Now, each experiment lasted 7 days, so I just named each day consecutively within each week
 
-```{r Days}
+```{r Days, message = FALSE, warning = FALSE}
 activity_pivot <- activity_pivot %>%
   arrange(Week, datetime) %>%
   group_by(Week) %>%
@@ -169,7 +169,7 @@ activity_pivot <- activity_pivot %>%
 
 After everything is defined, the next thing is to take the time and date in separate columns
 
-```{r DateTime}
+```{r DateTime, message = FALSE, warning = FALSE}
 activity_pivot$time <- format(as.POSIXct(
   activity_pivot$datetime),format = "%H:%M:%S") #extract time as a column
 activity_pivot$date <- as.Date(ymd_hms(activity_pivot$datetime)) 
@@ -178,7 +178,7 @@ activity_pivot$date <- as.Date(ymd_hms(activity_pivot$datetime))
 
 Now, I need to turn the time into decimal values to being able to add the activity values for later
 
-```{r HourDecimal}
+```{r HourDecimal, message = FALSE, warning = FALSE}
 activity_pivot$HourDecimal<-paste((substr(
   activity_pivot$time, 1,2)), 
   #Substract from the first to the second element from the column time in the
@@ -201,7 +201,7 @@ Week 3: 20,983\
 Week 4: 21,233\
 Week 5: 21,466
 
-```{r ControlTreatment}
+```{r ControlTreatment, message = FALSE, warning = FALSE}
 activity_pivot <- activity_pivot %>%
   mutate(experiment = case_when(
     Week == 1 & DayNumber == 1 & HourDecimal < 20.183 ~ "Capture",
@@ -244,7 +244,7 @@ activity_pivot <- activity_pivot %>%
 
 This is one of those code chunks that seems completely unnecesary. But, I don't run it nothing works after. Thanks R, or thanks uncomplete coding skills(?)
 
-```{r Whyyy}
+```{r Whyyy, message = FALSE, warning = FALSE}
 #Make activity database a table
 activity_pivot<-data.table(activity_pivot) 
 #Make cages database a table
@@ -255,14 +255,16 @@ complete_thesis_db$Week<-as.numeric(complete_thesis_db$Week)
 
 Lets check how many ring do we have here
 
-```{r}
+```{r rings1}
 unique(complete_thesis_db$Ring)
 length(unique(complete_thesis_db$Ring))
 ```
 
+There should be 73 rings.
+
 To have all the activity information per individual ring and species, let's merge both databases using the week and the cage as keys to match the values
 
-```{r Merge_activity}
+```{r Merge_activity, message = FALSE, warning = FALSE}
 #Merge bothe databases to have complete activity information and complete 
 #individual information
 #we need to sort the columns we will use Cage and Week for being the ones we will
@@ -273,30 +275,30 @@ setkey(complete_thesis_db, Cage, Week)
 merged_activity <- activity_pivot[complete_thesis_db, on=c("Cage", "Week")] 
 ```
 
-Lets check how many ring do we have here to control what we just did :)
+Lets check how many ring do we have here to control what we just did :) Again, they shoudl be 73.
 
-```{r}
+```{r rings2}
 unique(merged_activity$Ring)
 length(unique(merged_activity$Ring))
 ```
 
 From that database let's delete the data of the capture day and the data that is on "No trial" because is activity data we will not use further.
 
-```{r Capture-}
+```{r Capture-, message = FALSE, warning = FALSE}
 merged_activity <- merged_activity %>% #Delete capture & no trial data
   filter(!experiment %in% c("Capture", "not trial"))
 ```
 
-Lets check how many ring do we have here. Again, just to control we did not delete any individual
+Lets check how many ring do we have here. Again, just to control we did not delete any individual (should again be 73)
 
-```{r}
+```{r rings3}
 length(unique(merged_activity$Ring))
 unique(merged_activity$Ring)
 ```
 
 I also need to delete the data from the last day (day 7) that is after the releasing time (Sunset) because there were no birds in the cages and I was cleaning all night, so there's a lot of fake bird activity there. Just me moving around jeje
 
-```{r AfterEmlen-}
+```{r AfterEmlen-, message = FALSE, warning = FALSE}
 merged_activity <- merged_activity %>% # Delete data from after experiment
   filter(!(Week == 1 & DayNumber == 7 & HourDecimal > (20.383-1.5)) & 
            !(Week == 2 & DayNumber == 7 & HourDecimal > (20.666-1.5)) &
@@ -308,14 +310,14 @@ merged_activity <- merged_activity %>% # Delete data from after experiment
 
 Lets check how many ring do we have here. I am getting tired of checking this, but I already had problems deleting individual info that I didn't noticed. So let's keep doing it.
 
-```{r}
+```{r rings4}
 length(unique(merged_activity$Ring))
 unique(merged_activity$Ring)
 ```
 
 Finally, I need to assign day and night values to both treatment and control to know which slot of time had more activity.
 
-```{r DayNigth}
+```{r DayNigth, message = FALSE, warning = FALSE}
 #Assign the day and night values to each of the weeks (including the "day - night" 
 #schedule of the 24h setup)
 merged_activity <- merged_activity %>% 
@@ -1880,8 +1882,75 @@ ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
 (Before modeling) Three Willow Warblers does not meet the criteria to be included into the analysis (They fall into the gray zone where northern and southern willow warblers cant be separated). So, I needed to delete them.
 
 ```{r Willys-}
-merged_activity <- merged_activity %>%  
-  filter(!Ring %in% c("DK53569"))
+#merged_activity <- merged_activity %>%  
+#  filter(!Ring %in% c("DK53569"))
+```
+
+
+This model is the interaction between the experiment (control vs treatment) during day and night and taking into account the week of capture but also having as a random effect the species.
+
+```{r mod1s}
+mod_Exp_meanDayNight_Week_s<- lmer(DayNight_activity ~ DayNight * experiment + Week + (1|Ring) + (1|Species), data = mean_activity_DayNight, na.action = na.exclude)
+```
+
+To check the model fits some assumptions
+
+```{r check_mod1s, fig.width=7, fig.height=9}
+check_model(mod_Exp_meanDayNight_Week_s)
+```
+
+And the summary of the model
+
+```{r summary_mod1s}
+summary(mod_Exp_meanDayNight_Week_s)
+```
+
+Lets calculate the means and the confidence intervals for the model
+
+```{r CI_mod1s}
+mean_mod1s_week<-emmeans(mod_Exp_meanDayNight_Week_s, ~DayNight * experiment + Week)
+mean_mod1s_week
+```
+
+Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
+
+```{r pairs_mod1s}
+pairs(mean_mod1s_week, adjust=NULL)
+```
+
+Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
+
+```{r grid_mod1s}
+gr_mod1s_week <- ref_grid(mod_Exp_meanDayNight_Week_s, cov.keep=c("DayNight","experiment","Week"))
+gr_emmeans_mod1s_week<-as.data.frame(emmeans(gr_mod1s_week, specs = c("DayNight","experiment","Week"), 
+                                        level=0.95))
+```
+
+Now, to define the information we will use to plot the data
+
+```{r db_mod1s}
+mean_mod1_weeks<-as.data.frame(mean_mod1s_week)
+raw_Exp_DayNight_MeanData <- mean_activity_DayNight[
+  c("DayNight", "experiment", "DayNight_activity","Week")]
+plot_data_mod1s_week <- merge(gr_emmeans_mod1s_week, raw_Exp_DayNight_MeanData, 
+                         by = c("DayNight", "experiment"))
+```
+
+And, finally plotting this model
+
+```{r plot_mod1s}
+#| warning: false 
+ggplot(mean_mod1s_week, aes(x = DayNight, y = emmean, color = experiment)) +
+  geom_jitter(data = plot_data_mod1s_week, 
+              aes(x = DayNight, y = DayNight_activity, color=experiment),
+              alpha=0.3) +
+  geom_point(position = position_dodge2(width = 2), size =1.5) +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+                 position = position_dodge2(width = 1), size=1)+
+  facet_wrap(vars(Week))+
+  labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+  ggtitle("Activity across the day per experiment")+
+  theme_bw()
 ```
 
 ### 
