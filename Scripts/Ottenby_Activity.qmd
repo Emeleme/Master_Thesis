@@ -8,6 +8,16 @@ format: pdf
 
 This document has the codes and figures generated for Maria Laura's Master thesis - Activity analysis for spring season.
 
+PLEASE NOTE: For the paper that was generated from this experiments some terms 
+were changed for comprenhension in the text. But it was very confusing for me to
+change the whole text without messing it up a little bit. In this sense please 
+have in mind that:
+
+- Day and Night = Light and Dark PHASE
+- Control vs treatment = STAGE
+
+Sorry about this. I´ll fix it in future studies.
+
 ```{r start, message = FALSE, warning = FALSE}
 #| echo: false
 library(knitr)
@@ -337,7 +347,7 @@ merged_activity <- merged_activity %>%
     ))
 ```
 
-How many individuals do I have in the db
+How many individuals do I have in the db. They should be 68, some of them were released and not analyzed in the days that I did not consider for analysis.
 
 ```{r uniqueRings}
 length(unique(merged_activity$Ring)) 
@@ -349,7 +359,7 @@ Now I have a database that I can use to do the models and figures.
 
 Before doing the modeling I need to delete the feeding time for all days. I always started at 11 and ended around 13. Thus I decided to take whole two hours from it
 
-```{r Feeding-}
+```{r Feeding-, message = FALSE, warning = FALSE}
 feedingtime <- which((merged_activity$time) >= "11:00:00" & 
                        (merged_activity$time) <= "13:00:00") #Define feeding time
 merged_activity$Activity[feedingtime] <- NA #set feeding time activity values to NA
@@ -359,7 +369,7 @@ merged_activity$Activity[feedingtime] <- NA #set feeding time activity values to
 
 To calculate the total and mean activity per Day/Night we are going to set all the experimental days the same size.
 
-```{r ExperimentalDay}
+```{r ExperimentalDay, message = FALSE, warning = FALSE}
 #Make every day the same size in terms of hours of activity to being able to 
 #compare between days.
 merged_activity <- merged_activity %>%
@@ -434,9 +444,10 @@ merged_activity <- merged_activity %>%
   ))
 ```
 
-First lets do the mean activity per Day and Night
+First lets do the mean activity per Day and Night. Here I check how is the distribution
+of the activity throughout the day. 
 
-```{r MeanDayNight}
+```{r MeanDayNight, message = FALSE, warning = FALSE}
 #Take the mean of the activity during Day or night
 mean_activity_DayNight <- merged_activity %>%
   group_by(Ring, DayNight, Week, experiment, Species, ExperimentalDay, 
@@ -450,7 +461,7 @@ hist(mean_activity_DayNight$DayNight_activity, breaks = 1800)
 
 Now let's calculate the mean activity per day to have the complete day activity too.
 
-```{r MeanTotal}
+```{r MeanTotal, message = FALSE, warning = FALSE}
 #Calculate the mean activity per the whole day
 mean_activity_Total <- merged_activity %>%
   group_by(Ring, Week, experiment, Species, ExperimentalDay, 
@@ -463,9 +474,9 @@ hist(mean_activity_Total$DayNight_activity, breaks=1800)
 
 #### Model 1s: Experiment \* DayNight + Species as random
 
-This model is the interaction between the experiment (control vs treatment) during day and night but also having as a random effect the species.
+This model is the interaction between the experiment (control vs treatment) during day and night having as a random effect the ring and species.
 
-```{r mod1s}
+```{r mod1s, message = FALSE, warning = FALSE}
 mod_Exp_meanDayNight_s<- lmer(DayNight_activity ~ DayNight * experiment + 
                                 (1|Ring) + (1|Species), 
                               data = mean_activity_DayNight, na.action = na.exclude)
@@ -473,32 +484,32 @@ mod_Exp_meanDayNight_s<- lmer(DayNight_activity ~ DayNight * experiment +
 
 To check the model fits some assumptions
 
-```{r check_mod1s, fig.width=7, fig.height=9}
+```{r check_mod1s, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(mod_Exp_meanDayNight_s)
 ```
 
 And the summary of the model
 
-```{r summary_mod1s}
+```{r summary_mod1s, message = FALSE, warning = FALSE}
 summary(mod_Exp_meanDayNight_s)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod1s}
+```{r CI_mod1s, message = FALSE, warning = FALSE}
 mean_mod1s<-emmeans(mod_Exp_meanDayNight_s, ~DayNight * experiment)
 mean_mod1s
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod1s}
+```{r pairs_mod1s, message = FALSE, warning = FALSE}
 pairs(mean_mod1s, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod1s}
+```{r grid_mod1s, message = FALSE, warning = FALSE}
 gr_mod1s <- ref_grid(mod_Exp_meanDayNight_s, cov.keep=c("DayNight","experiment"))
 gr_emmeans_mod1s<-as.data.frame(emmeans(gr_mod1s, specs = c("DayNight","experiment"), 
                                         level=0.95))
@@ -506,24 +517,23 @@ gr_emmeans_mod1s<-as.data.frame(emmeans(gr_mod1s, specs = c("DayNight","experime
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod1s}
+```{r db_mod1s, message = FALSE, warning = FALSE}
 mean_mod1s<-as.data.frame(mean_mod1s)
 raw_Exp_DayNight_MeanData <- mean_activity_DayNight[
-  c("DayNight", "experiment", "DayNight_activity")]
+  c("DayNight", "experiment", "DayNight_activity", "Species")] #So we can plot things with color per species
 plot_data_mod1s <- merge(gr_emmeans_mod1s, raw_Exp_DayNight_MeanData, 
                          by = c("DayNight", "experiment"))
 ```
 
 And, finally plotting this model
 
-```{r plot_mod1s}
-#| warning: false 
-ggplot(mean_mod1s, aes(x = DayNight, y = emmean, color = experiment)) +
+```{r MeanActivityPerStage_plot, fig.path = "figures/", message = FALSE, warning = FALSE}
+ggplot(mean_mod1s, aes(x = DayNight, y = emmean)) +
   geom_jitter(data = plot_data_mod1s, 
-              aes(x = DayNight, y = DayNight_activity, color=experiment),
-              alpha=0.3) +
-  geom_point(position = position_dodge2(width = 2), size =1.5) +
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+              aes(x = DayNight, y = DayNight_activity, color=Species), 
+              alpha = 0.7, show.legend = FALSE) +
+  geom_point(position = position_dodge2(width = 2), size =2.8) +
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL),
                  position = position_dodge2(width = 1), size=1)+
   facet_wrap(vars(experiment))+
   labs(x = "Day/Night", y = "Estimated Marginal Mean") +
@@ -533,80 +543,11 @@ ggplot(mean_mod1s, aes(x = DayNight, y = emmean, color = experiment)) +
 
 #### 
 
-### Model 2: Experiment \* DayNight \* BreedingDistribution
-
-The second random effect lineal model is the interaction between the experiment (control vs treatment) during day and night and breeding distribution
-
-```{r mod2}
-mod_ExpBreed_meanDayNight<- lmer(DayNight_activity ~ DayNight * experiment * 
-                                   BreedingDistribution + (1|Ring),
-                                 data = mean_activity_DayNight, na.action = na.exclude)
-```
-
-To check the model fits some assumptions
-
-```{r check_mod2, fig.width=7, fig.height=9}
-check_model(mod_ExpBreed_meanDayNight)
-```
-
-And the summary of the model
-
-```{r summary_mod2}
-summary(mod_ExpBreed_meanDayNight)
-```
-
-Lets calculate the means and the confidence intervals for the model
-
-```{r CI_mod2}
-mean_mod2<-emmeans(mod_ExpBreed_meanDayNight, ~DayNight * experiment * 
-                     BreedingDistribution)
-mean_mod2
-```
-
-Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
-
-```{r pairs_mod2}
-pairs(mean_mod2)
-```
-
-Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
-
-```{r grid_mod2}
-gr_mod2 <- ref_grid(mod_ExpBreed_meanDayNight, cov.keep=c("DayNight","experiment", "BreedingDistribution"))
-gr_emmeans_mod2<-as.data.frame(emmeans(gr_mod2, specs = c("DayNight","experiment", "BreedingDistribution"), level=0.95))
-```
-
-Now, to define the information we will use to plot the data
-
-```{r db_mod2}
-mean_mod2<-as.data.frame(mean_mod2)
-raw_ExpDayNightBreed_MeanData <- mean_activity_DayNight[
-  c("DayNight", "experiment", "DayNight_activity", "BreedingDistribution")]
-plot_data_mod2 <- merge(gr_emmeans_mod2, raw_ExpDayNightBreed_MeanData, 
-                        by = c("DayNight", "experiment"))
-```
-
-And, finally plotting this model
-
-```{r plot_mod2}
-#| warning: false 
-ggplot(mean_mod2, aes(x = DayNight, y = emmean, color = experiment)) +
-  geom_jitter(data = plot_data_mod2, aes(x = DayNight, y = DayNight_activity), 
-              color="lightgray") +
-  geom_point(position = position_dodge2(width = 2), size =1.5) +
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
-                 position = position_dodge2(width = 1), size=1)+
-  facet_wrap(vars(BreedingDistribution))+
-  labs(x = "Day/Night", y = "Estimated Marginal Mean") +
-  ggtitle("Activity across the day per experiment")+
-  theme_bw()
-```
-
-#### Model 2s: Experiment \* DayNight \* BreedingDistribution + Species as random
+####  Model 2s: Experiment \* DayNight \* BreedingDistribution + Species as random
 
 This model is the interaction between the experiment (control vs treatment) during day and night and the breeding distribution of species but also having as a random effect the species.
 
-```{r mod2s}
+```{r mod2s, message = FALSE, warning = FALSE}
 mod_ExpBreed_meanDayNight_s<- lmer(DayNight_activity ~ DayNight * experiment * 
                                 BreedingDistribution + (1|Ring) + (1|Species),
                                 data = mean_activity_DayNight, na.action = na.exclude)
@@ -614,19 +555,19 @@ mod_ExpBreed_meanDayNight_s<- lmer(DayNight_activity ~ DayNight * experiment *
 
 To check the model fits some assumptions
 
-```{r check_mod2s, fig.width=7, fig.height=9}
+```{r check_mod2s, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(mod_ExpBreed_meanDayNight_s)
 ```
 
 And the summary of the model
 
-```{r summary_mod2s}
+```{r summary_mod2s, message = FALSE, warning = FALSE}
 summary(mod_ExpBreed_meanDayNight_s)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod2s}
+```{r CI_mod2s, message = FALSE, warning = FALSE}
 mean_mod2s<-emmeans(mod_ExpBreed_meanDayNight_s, ~DayNight * experiment *
                       BreedingDistribution)
 mean_mod2s
@@ -634,13 +575,13 @@ mean_mod2s
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod2s}
+```{r pairs_mod2s, message = FALSE, warning = FALSE}
 pairs(mean_mod2s, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod2s}
+```{r grid_mod2s, message = FALSE, warning = FALSE}
 gr_mod2s <- ref_grid(mod_ExpBreed_meanDayNight_s, 
                      cov.keep=c("DayNight","experiment", "BreedingDistribution"))
 gr_emmeans_mod2s<-as.data.frame(emmeans(gr_mod2s, 
@@ -651,191 +592,35 @@ gr_emmeans_mod2s<-as.data.frame(emmeans(gr_mod2s,
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod2s}
+```{r db_mod2s, message = FALSE, warning = FALSE}
 mean_mod2s<-as.data.frame(mean_mod2s)
 raw_ExpDayNightBreed_MeanData_s <- mean_activity_DayNight[
-  c("DayNight", "experiment", "DayNight_activity", "BreedingDistribution")]
+  c("DayNight", "experiment", "DayNight_activity", "BreedingDistribution", "Species")]
 plot_data_mod2s <- merge(gr_emmeans_mod2s, raw_ExpDayNightBreed_MeanData_s, 
                          by = c("DayNight", "experiment","BreedingDistribution"))
 ```
 
 And, finally plotting this model
 
-```{r plot_mod2s}
-#| warning: false
-ggplot(mean_mod2s, aes(x = DayNight, y = emmean, color = experiment)) +
-  geom_jitter(data = plot_data_mod2sMOCK %>% filter(BreedingDistribution == "Polar"),
-              aes(x = DayNight, y = DayNight_activity, color = experiment),
-              alpha = 0.3, 
+```{r plot_mod2s, message = FALSE, warning = FALSE}
+ggplot(mean_mod2s, aes(x = DayNight, y = emmean, shape=experiment)) +
+   geom_jitter(data = plot_data_mod2s %>% filter(BreedingDistribution == "Polar"),
+              aes(x = DayNight, y = DayNight_activity, shape=experiment, color = Species),
+              alpha = 0.7, show.legend = FALSE,
               position = position_dodge2(width = 0.6, padding = 0.5)) +  # Polar raw data
-  geom_jitter(data = plot_data_mod2sMOCK %>% filter(BreedingDistribution == "Subpolar"),
-              aes(x = DayNight, y = DayNight_activity, color = experiment),
-              alpha = 0.3, 
+   geom_jitter(data = plot_data_mod2s %>% filter(BreedingDistribution == "Subpolar"),
+              aes(x = DayNight, y = DayNight_activity, shape=experiment, color = Species),
+              alpha = 0.7, show.legend = FALSE, 
               position = position_dodge2(width = 0.6, padding = 0.5)) +  # Subpolar raw data
-  geom_point(position = position_dodge2(width = 0.6, padding = 0.5), size = 1.5) +
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), 
-                 alpha = 0.5,
-                 position = position_dodge2(width = 0.6, padding = 0.5), 
+   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), 
+                 position = position_dodge2(width = 0.6, padding = 0.5),
+                 alpha = 0.8,
                  size = 1) +
+   geom_point(aes(shape=experiment), 
+              position = position_dodge2(width = 0.6, padding = 0.5), size = 2.8) +
   facet_wrap(~BreedingDistribution) +
   labs(x = "Day/Night", y = "Estimated Marginal Mean") +
   ggtitle("Activity across the day per experiment") +
-  theme_bw()
-```
-
-#### Model 2sw: Experiment \* DayNight \* Week + Species as random
-
-This model is the interaction between the experiment (control vs treatment) during day and night and the week as the value of capture date of species but also having as a random effect the species.
-
-```{r mod2sw}
-mod_ExpBreed_meanDayNight_sw<- lmer(DayNight_activity ~ DayNight * experiment * 
-                                Week + (1|Ring) + (1|Species),
-                                data = mean_activity_DayNight, na.action = na.exclude)
-```
-
-To check the model fits some assumptions
-
-```{r check_mod2sw, fig.width=7, fig.height=9}
-check_model(mod_ExpBreed_meanDayNight_sw)
-```
-
-And the summary of the model
-
-```{r summary_mod2sw}
-summary(mod_ExpBreed_meanDayNight_sw)
-```
-
-To check the performance
-
-```{r check_mod2sw, fig.width=7, fig.height=9}
-model_performance(mod_ExpBreed_meanDayNight_sw)
-```
-
-Lets calculate the means and the confidence intervals for the model
-
-```{r CI_mod2sw}
-mean_mod2sw<-emmeans(mod_ExpBreed_meanDayNight_sw, ~DayNight * experiment *
-                      Week)
-mean_mod2sw
-```
-
-Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
-
-```{r pairs_mod2sw}
-pairs(mean_mod2sw, adjust=NULL)
-```
-
-Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
-
-```{r grid_mod2sw}
-gr_mod2sw <- ref_grid(mod_ExpBreed_meanDayNight_sw, 
-                     cov.keep=c("DayNight","experiment", "Week"))
-gr_emmeans_mod2sw<-as.data.frame(emmeans(gr_mod2sw, 
-                                specs = c("DayNight","experiment",
-                                          "Week"), 
-                                at = list(Week = c(1,2,3,4,5)),
-                                level=0.95))
-```
-
-And now store the results p_values in a table
-
-```{r pairs_table_mod2sw}
-pval_mod2sw<-emmeans(gr_mod2sw, 
-                     specs = c("DayNight","experiment", "Week"), 
-                     at = list(Week = c(1,2,3,4,5)), level=0.95)
-pval_mod2sw_df<-as.data.frame(pairs(pval_mod2sw, adjust=NULL))
-```
-
-Now, to define the information we will use to plot the data
-
-```{r db_mod2sw}
-mean_mod2sw<-as.data.frame(mean_mod2sw)
-raw_ExpDayNightBreed_MeanData_sw <- mean_activity_DayNight[
-  c("DayNight", "experiment", "DayNight_activity", "Week")]
-plot_data_mod2sw <- merge(gr_emmeans_mod2sw, raw_ExpDayNightBreed_MeanData_sw, 
-                         by = c("DayNight", "experiment", "Week"))
-```
-
-And, finally plotting this model
-
-```{r plot_mod2sw}
-#| warning: false
-ggplot(gr_emmeans_mod2sw, aes(x = DayNight, y = emmean, color = experiment)) +
-  geom_jitter(data = plot_data_mod2sw, aes(x = DayNight, y = DayNight_activity), 
-              color="lightgray") +
-  geom_point(position = position_dodge2(width = 2), size =1.5) +
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
-                 position = position_dodge2(width = 1), size=1)+
-  facet_wrap(vars(Week))+
-  labs(x = "Day/Night", y = "Estimated Marginal Mean") +
-  ggtitle("Activity across the day per experiment")+
-  theme_bw()
-```
-
-### Model 3: Experiment
-
-The second random effect lineal model is the interaction between the experiment (control vs treatment) during day and night and breeding distribution
-
-```{r mod3}
-mod_Exp_meanTotal<- lmer(DayNight_activity ~ experiment + (1|Ring),
-                         data = mean_activity_Total, na.action = na.exclude)
-```
-
-To check the model fits some assumptions
-
-```{r check_mod3, fig.width=7, fig.height=9}
-check_model(mod_Exp_meanTotal)
-```
-
-And the summary of the model
-
-```{r summary_mod3}
-summary(mod_Exp_meanTotal)
-```
-
-Lets calculate the means and the confidence intervals for the model
-
-```{r CI_mod3}
-total_mod3<-emmeans(mod_Exp_meanTotal, ~ experiment)
-total_mod3
-```
-
-Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
-
-```{r pairs_mod3}
-pairs(total_mod3)
-```
-
-Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
-
-```{r grid_mod3}
-gr_mod3 <- ref_grid(mod_Exp_meanTotal, cov.keep=c("experiment"))
-gr_emmeans_mod3<-as.data.frame(emmeans(gr_mod3, specs = c("experiment"),
-                                       level=0.95))
-```
-
-Now, to define the information we will use to plot the data
-
-```{r db_mod3}
-total_mod3<-as.data.frame(total_mod3)
-raw_Exp_DayNight_TotalData <- mean_activity_Total[
-  c("experiment", "DayNight_activity")]
-plot_data_mod3 <- merge(gr_emmeans_mod3, raw_Exp_DayNight_TotalData,
-                        by = c("experiment"))
-```
-
-And, finally plotting this model
-
-```{r plot_mod3}
-#| warning: false  
-ggplot(total_mod3, aes(x = experiment, y = emmean)) +   
-  geom_jitter(data = plot_data_mod3, aes(x = experiment, y = DayNight_activity),
-              color="lightgray") +   
-  geom_point(position = position_dodge2(width = 2), size =1.5) + 
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
-                 position = position_dodge2(width = 1), size=1)+  
-  labs(x = "Experiment", y = "Estimated Marginal Mean") +   
-  ggtitle("Activity per experiment")+  
   theme_bw()
 ```
 
@@ -843,39 +628,39 @@ ggplot(total_mod3, aes(x = experiment, y = emmean)) +
 
 This model is the total activity across experiments correcting by the species as a random effect.
 
-```{r mod3s}
+```{r mod3s, message = FALSE, warning = FALSE}
 mod_Exp_meanTotal_s<- lmer(DayNight_activity ~ experiment + (1|Ring)+(1|Species),
                            data = mean_activity_Total, na.action = na.exclude)
 ```
 
 To check the model fits some assumptions
 
-```{r check_mod3s, fig.width=7, fig.height=9}
+```{r check_mod3s, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(mod_Exp_meanTotal_s)
 ```
 
 And the summary of the model
 
-```{r summary_mod3s}
+```{r summary_mod3s, message = FALSE, warning = FALSE}
 summary(mod_Exp_meanTotal_s)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod3s}
+```{r CI_mod3s, message = FALSE, warning = FALSE}
 total_mod3s<-emmeans(mod_Exp_meanTotal_s, ~ experiment) 
 total_mod3s
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod3s}
+```{r pairs_mod3s, message = FALSE, warning = FALSE}
 pairs(total_mod3s, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod3s}
+```{r grid_mod3s, message = FALSE, warning = FALSE}
 gr_mod3s <- ref_grid(mod_Exp_meanTotal_s, cov.keep=c("experiment")) 
 gr_emmeans_mod3s<-as.data.frame(emmeans(gr_mod3s, specs = c("experiment"), 
                                         level=0.95))
@@ -883,23 +668,22 @@ gr_emmeans_mod3s<-as.data.frame(emmeans(gr_mod3s, specs = c("experiment"),
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod3s}
+```{r db_mod3s, message = FALSE, warning = FALSE}
 total_mod3s<-as.data.frame(total_mod3s)
 raw_Exp_DayNight_TotalData <- mean_activity_Total[
-  c("experiment", "DayNight_activity")] 
+  c("experiment", "DayNight_activity", "Species")] 
 plot_data_mod3s <- merge(gr_emmeans_mod3s, raw_Exp_DayNight_TotalData, 
                          by = c("experiment"))
 ```
 
 And, finally plotting this model
 
-```{r plot_mod3s}
-#| warning: false   
+```{r plot_mod3s, message = FALSE, warning = FALSE}
 ggplot(total_mod3s, aes(x = experiment, y = emmean)) +   
-  geom_jitter(data = plot_data_mod3s, aes(x = experiment, y = DayNight_activity),
-              color="lightgray") +  
-  geom_point(position = position_dodge2(width = 2), size =1.5) +   
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,              
+  geom_jitter(data = plot_data_mod3s, aes(x = experiment, y = DayNight_activity, 
+                                          color=Species),alpha = 0.7, show.legend = FALSE)+
+  geom_point(position = position_dodge2(width = 2), size =2.8) +   
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.8,              
                  position = position_dodge2(width = 1), size=1)+   
   labs(x = "Experiment", y = "Estimated Marginal Mean") +  
   ggtitle("Activity per experiment")+  
@@ -908,81 +692,11 @@ ggplot(total_mod3s, aes(x = experiment, y = emmean)) +
 
 #### 
 
-### Model 4: Experiment \* breeding distribution
-
-The last random effect lineal model is the interaction between the experiment (control vs treatment) and breeding distribution during the whole day
-
-```{r mod4}
-mod_ExpBreed_meanTotal<- lmer(DayNight_activity ~ experiment * 
-                                BreedingDistribution + (1|Ring),
-                         data = mean_activity_Total, na.action = na.exclude)
-```
-
-To check the model fits some assumptions
-
-```{r check_mod4, fig.width=7, fig.height=9}
-check_model(mod_ExpBreed_meanTotal)
-```
-
-And the summary of the model
-
-```{r summary_mod4}
-summary(mod_ExpBreed_meanTotal)
-```
-
-Lets calculate the means and the confidence intervals for the model
-
-```{r CI_mod4}
-total_mod4<-emmeans(mod_ExpBreed_meanTotal, ~ experiment * BreedingDistribution) 
-total_mod4
-```
-
-Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
-
-```{r pairs_mod4}
-pairs(total_mod4, adjust=NULL)
-```
-
-Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
-
-```{r grid_mod4}
-#| warning: false  
-gr_mod4 <- ref_grid(mod_ExpBreed_meanTotal, cov.keep=c("experiment")) 
-gr_emmeans_mod4<-as.data.frame(emmeans(gr_mod4, specs = c("experiment"), 
-                                       level=0.95))
-```
-
-Now, to define the information we will use to plot the data
-
-```{r db_mod4}
-total_mod4<-as.data.frame(total_mod4)
-raw_Exp_DayNight_TotalData <- mean_activity_Total[
-  c("experiment", "DayNight_activity", "BreedingDistribution")] 
-plot_data_mod4 <- merge(gr_emmeans_mod4, raw_Exp_DayNight_TotalData,
-                        by = c("experiment"))
-```
-
-And, finally plotting this model
-
-```{r plot_mod4}
-#| warning: false   
-ggplot(total_mod4, aes(x = experiment, y = emmean)) +  
-  geom_jitter(data = plot_data_mod4, aes(x = experiment, y = DayNight_activity),
-              color="lightgray") +  
-  geom_point(position = position_dodge2(width = 2), size =1.5) + 
-  facet_wrap(vars(BreedingDistribution))+
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5, 
-                 position = position_dodge2(width = 1), size=1)+  
-  labs(x = "Experiment", y = "Estimated Marginal Mean") +  
-  ggtitle("Activity per experiment")+  
-  theme_bw()
-```
-
 #### Model 4s: Experiment \* BreedingDistribution + Species as random
 
 This model is the interaction between the experiment (control vs treatment) and breeding distribution during the whole day with Species as a random effect
 
-```{r mod4s}
+```{r mod4s, message = FALSE, warning = FALSE}
 mod_ExpBreed_meanTotal_s<- lmer(DayNight_activity ~ experiment *
                                   BreedingDistribution + (1|Ring) + (1|Species), 
                                 data = mean_activity_Total, na.action = na.exclude)
@@ -990,32 +704,32 @@ mod_ExpBreed_meanTotal_s<- lmer(DayNight_activity ~ experiment *
 
 To check the model fits some assumptions
 
-```{r check_mod4s, fig.width=7, fig.height=9}
+```{r check_mod4s, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(mod_ExpBreed_meanTotal_s)
 ```
 
 And the summary of the model
 
-```{r summary_mod4s}
+```{r summary_mod4s, message = FALSE, warning = FALSE}
 summary(mod_ExpBreed_meanTotal_s)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod4s}
+```{r CI_mod4s, message = FALSE, warning = FALSE}
 total_mod4s<-emmeans(mod_ExpBreed_meanTotal_s, ~ experiment * BreedingDistribution) 
 total_mod4s
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod4s}
+```{r pairs_mod4s, message = FALSE, warning = FALSE}
 pairs(total_mod4s, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod4s}
+```{r grid_mod4s, message = FALSE, warning = FALSE}
 #| warning: false   
 gr_mod4s <- ref_grid(mod_ExpBreed_meanTotal_s, cov.keep=c("experiment"))  
 gr_emmeans_mod4s<-as.data.frame(emmeans(gr_mod4s, specs = c("experiment"), 
@@ -1024,24 +738,24 @@ gr_emmeans_mod4s<-as.data.frame(emmeans(gr_mod4s, specs = c("experiment"),
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod4s}
+```{r db_mod4s, message = FALSE, warning = FALSE}
 total_mod4s<-as.data.frame(total_mod4s)
 raw_Exp_DayNight_TotalData <- mean_activity_Total[
-  c("experiment", "DayNight_activity", "BreedingDistribution")]  
+  c("experiment", "DayNight_activity", "BreedingDistribution", "Species")]  
 plot_data_mod4s <- merge(gr_emmeans_mod4s, raw_Exp_DayNight_TotalData,
                          by = c("experiment"))
 ```
 
 And, finally plotting this model
 
-```{r plot_mod4s}
-#| warning: false    
+```{r plot_mod4s, message = FALSE, warning = FALSE}
+#| warning: false
 ggplot(total_mod4s, aes(x = experiment, y = emmean)) +  
-  geom_jitter(data = plot_data_mod4s, aes(x = experiment, y = DayNight_activity),
-              color="lightgray") +  
-  geom_point(position = position_dodge2(width = 2), size =1.5) +   
+  geom_jitter(data = plot_data_mod4s, aes(x = experiment, y = DayNight_activity,
+                                          color=Species),alpha = 0.7, show.legend = FALSE)+
+  geom_point(position = position_dodge2(width = 2), size =2.8) +   
   facet_wrap(vars(BreedingDistribution))+  
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5, 
+  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.8, 
                  position = position_dodge2(width = 1), size=1)+  
   labs(x = "Experiment", y = "Estimated Marginal Mean") +  
   ggtitle("Activity per experiment")+  
@@ -1052,7 +766,7 @@ ggplot(total_mod4s, aes(x = experiment, y = emmean)) +
 
 To check each model against a null model and then a comparison between all of the models all together. First lets define the null models, the null models are the same as the models proposed above (only using the ones corrected by species), but without using the factors, instead those are going to be 1.
 
-```{r null_mods}
+```{r null_mods, message = FALSE, warning = FALSE}
 #-Model 1: mod_Exp_meanDayNight_s<- lmer(DayNight_activity ~ DayNight * experiment + (1|Ring) + (1|Species), data = mean_activity_DayNight, na.action = na.exclude)
 #-Model 2:mod_ExpBreed_meanDayNight_s<- lmer(DayNight_activity ~ DayNight * experiment * BreedingDistribution + (1|Ring) + (1|Species), data = mean_activity_DayNight, na.action = na.exclude)
 #-Model 3: mod_Exp_meanTotal_s<- lmer(DayNight_activity ~ experiment + (1|Ring)+(1|Species), data = mean_activity_Total, na.action = na.exclude)
@@ -1073,46 +787,46 @@ Now we run each model against its null models using anovas.
 
 For model 1:
 
-```{r null1}
+```{r null1, message = FALSE, warning = FALSE}
 anova(mod_Exp_meanDayNight_s, null_mod1, test="LTR")
 ```
 
 For model 2:
 
-```{r null2}
+```{r null2, message = FALSE, warning = FALSE}
 anova(mod_ExpBreed_meanDayNight_s, null_mod2, test="LTR")
 ```
 
 For model 3:
 
-```{r null3}
+```{r null3, message = FALSE, warning = FALSE}
 anova(mod_Exp_meanTotal_s, null_mod3, test="LTR")
 ```
 
 For model 4:
 
-```{r null4}
+```{r null4, message = FALSE, warning = FALSE}
 anova(mod_ExpBreed_meanTotal_s, null_mod4, test="LTR")
 ```
 
 And all mean against mean
 
-```{r null_Mean}
+```{r null_Mean, message = FALSE, warning = FALSE}
 anova(mod_Exp_meanDayNight_s, mod_ExpBreed_meanDayNight_s, null_mod1, 
       null_DayNight, test="LTR")
 ```
 
 And total against total
 
-```{r null_Total}
+```{r null_Total, message = FALSE, warning = FALSE}
 anova(mod_Exp_meanTotal_s, mod_ExpBreed_meanTotal_s, null_mod3, test="LTR")
 ```
 
-#### Random and fixed effects contribution
+### Random and fixed effects contribution
 
 We can check how much contributuion of the random effects and the fixed effects each model has using MuMIn package
 
-```{r r2}
+```{r r2, message = FALSE, warning = FALSE}
 model_performance(mod_Exp_meanDayNight)
 model_performance(mod_Exp_meanDayNight_s)
 
@@ -1128,7 +842,7 @@ model_performance(mod_ExpBreed_meanTotal_s)
 
 And the null models performance
 
-```{r}
+```{r null_performance, message = FALSE, warning = FALSE}
 model_performance(null_mod1)
 model_performance(null_mod3)
 model_performance(null_DayNight)
@@ -1136,25 +850,25 @@ model_performance(null_DayNight)
 
 Plotting random effects
 
-```{r re_mod1s}
+```{r re_mod1s, message = FALSE, warning = FALSE}
 plot_model(mod_Exp_meanDayNight_s, type="re",
            vline.color="#A9A9A9", dot.size=1.5,
            show.values=T, value.offset=.2)
 ```
 
-```{r re_mod2s}
+```{r re_mod2s, message = FALSE, warning = FALSE}
 plot_model(mod_ExpBreed_meanDayNight_s, type="re",
            vline.color="#A9A9A9", dot.size=1.5,
            show.values=T, value.offset=.2)
 ```
 
-```{r re_mod3s}
+```{r re_mod3s, message = FALSE, warning = FALSE}
 plot_model(mod_Exp_meanTotal_s, type="re",
            vline.color="#A9A9A9", dot.size=1.5,
            show.values=T, value.offset=.2)
 ```
 
-```{r re_mod4s}
+```{r re_mod4s, message = FALSE, warning = FALSE}
 plot_model(mod_ExpBreed_meanTotal_s, type="re",
            vline.color="#A9A9A9", dot.size=1.5,
            show.values=T, value.offset=.2)
@@ -1164,21 +878,21 @@ plot_model(mod_ExpBreed_meanTotal_s, type="re",
 
 Before doing the modeling I need to subset the Robin data from Merged_data
 
-```{r RobinSubset}
+```{r RobinSubset, message = FALSE, warning = FALSE}
 Robins_act<- subset(merged_activity, Species=="Robin")
 ```
 
-How many Robins do I have?
+How many Robins do I have? They should be 33
 
-```{r UniqueRobins}
-length(unique(Robins_act$Ring)) #me hacen falta 7 individuos Robin. BUSCAR
+```{r UniqueRobins, message = FALSE, warning = FALSE}
+length(unique(Robins_act$Ring)) 
 ```
 
 ### Mean and total activity
 
 First lets do the mean activity per Day and Night and the total activity
 
-```{r MeanDayNight_R}
+```{r MeanDayNight_R, message = FALSE, warning = FALSE}
 Robin_mean_activity_DayNight <- subset(mean_activity_DayNight, Species=="Robin")
 Robin_mean_activity_Total<- subset(mean_activity_Total, Species=="Robin")
 ```
@@ -1187,39 +901,39 @@ Robin_mean_activity_Total<- subset(mean_activity_Total, Species=="Robin")
 
 The first random effect lineal model is the interaction between the experiment (control vs treatment) during day and night
 
-```{r mod1_R}
+```{r mod1_R, message = FALSE, warning = FALSE}
 mod_Exp_meanDayNight_R<- lmer(DayNight_activity ~ DayNight * experiment + (1|Ring),
                               data = Robin_mean_activity_DayNight, na.action = na.exclude)
 ```
 
 To check the model fits some assumptions
 
-```{r check_mod1_R, fig.width=7, fig.height=9}
+```{r check_mod1_R, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(mod_Exp_meanDayNight_R)
 ```
 
 And the summary of the model
 
-```{r summary_mod1_R}
+```{r summary_mod1_R, message = FALSE, warning = FALSE}
 summary(mod_Exp_meanDayNight_R)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod1_R}
+```{r CI_mod1_R, message = FALSE, warning = FALSE}
 mean_mod1_R<-emmeans(mod_Exp_meanDayNight_R, ~DayNight * experiment) 
 mean_mod1_R
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod1_R}
+```{r pairs_mod1_R, message = FALSE, warning = FALSE}
 pairs(mean_mod1_R, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod1_R}
+```{r grid_mod1_R, message = FALSE, warning = FALSE}
 gr_mod1_R <- ref_grid(mod_Exp_meanDayNight_R, cov.keep=c("DayNight","experiment")) 
 gr_emmeans_mod1_R<-as.data.frame(emmeans(gr_mod1_R, specs = c("DayNight","experiment"),
                                          level=0.95))
@@ -1227,7 +941,7 @@ gr_emmeans_mod1_R<-as.data.frame(emmeans(gr_mod1_R, specs = c("DayNight","experi
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod1_R}
+```{r db_mod1_R, message = FALSE, warning = FALSE}
 mean_mod1_R<- as.data.frame(mean_mod1_R)  
 raw_Exp_DayNight_MeanData_R <- Robin_mean_activity_DayNight[
   c("DayNight", "experiment", "DayNight_activity")]   #Merge the columns choosen with the data from the model 
@@ -1237,38 +951,29 @@ plot_data_mod1_R <- merge(gr_emmeans_mod1_R, raw_Exp_DayNight_MeanData_R,
 
 And, finally plotting this model
 
-```{r plot_mod1_R}
+```{r plot_mod1_R, message = FALSE, warning = FALSE}
 #| warning: false
 ggplot(mean_mod1_R, aes(x = DayNight, y = emmean, color = experiment)) +  
-  geom_jitter(data = plot_data_mod1_R, aes(x = DayNight, y = DayNight_activity, color = experiment), alpha = 0.3) +   
-  geom_point(position = position_dodge2(width = 2), size =1.5) + 
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,          
-                 position = position_dodge2(width = 1), size=1)+  
-  facet_wrap(vars(experiment))+ 
-  labs(x = "Day/Night", y = "Estimated Marginal Mean") +  
-  ggtitle("Activity across the day per experiment")+ 
-  theme_bw() 
-# ggplot(mean_mod1_R, aes(x = DayNight, y = emmean, color = experiment)) +  
-#   geom_jitter(data = plot_data_mod1_R, aes(x = DayNight, y = DayNight_activity),
-#               color="lightgray") +   
-#   geom_point(position = position_dodge2(width = 2), size =1.5) + 
-#   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,          
-#                  position = position_dodge2(width = 1), size=1)+  
-#   facet_wrap(vars(experiment))+ 
-#   labs(x = "Day/Night", y = "Estimated Marginal Mean") +  
-#   ggtitle("Activity across the day per experiment")+ 
-#   theme_bw()
+   geom_jitter(data = plot_data_mod1_R, aes(x = DayNight, y = DayNight_activity),
+               color="lightgray") +   
+   geom_point(position = position_dodge2(width = 2), size =1.5) + 
+   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,          
+                  position = position_dodge2(width = 1), size=1)+  
+   facet_wrap(vars(experiment))+ 
+   labs(x = "Day/Night", y = "Estimated Marginal Mean") +  
+   ggtitle("Activity across the day per experiment")+
+   theme_bw()
 ```
 
 To check random effects contribution
 
-```{r r2_mod1_R}
+```{r r2_mod1_R, message = FALSE, warning = FALSE}
 model_performance(mod_Exp_meanDayNight_R)
 ```
 
 model comparison
 
-```{r null_mod1_R}
+```{r null_mod1_R, message = FALSE, warning = FALSE}
 # mod_Exp_meanDayNight_R<- lmer(DayNight_activity ~ DayNight * experiment + (1|Ring),
 #                               data = Robin_mean_activity_DayNight, na.action = na.exclude)
 
@@ -1282,39 +987,39 @@ anova(null_mod1_R, mod_Exp_meanDayNight_R, test="LTR")
 
 The first random effect lineal model is the interaction between the experiment (control vs treatment) during day and night
 
-```{r mod2_R}
+```{r mod2_R, message = FALSE, warning = FALSE}
 mod_Exp_meanTotal_R<- lmer(DayNight_activity ~ experiment + (1|Ring),  
                            data = Robin_mean_activity_Total, na.action = na.exclude)
 ```
 
 To check the model fits some assumptions
 
-```{r check_mod2_R, fig.width=7, fig.height=9}
+```{r check_mod2_R, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(mod_Exp_meanTotal_R)
 ```
 
 And the summary of the model
 
-```{r summary_mod2_R}
+```{r summary_mod2_R, message = FALSE, warning = FALSE}
 summary(mod_Exp_meanTotal_R)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod2_R}
+```{r CI_mod2_R, message = FALSE, warning = FALSE}
 mean_mod2_R<-emmeans(mod_Exp_meanTotal_R, ~ experiment)  
 mean_mod2_R
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod2_R}
+```{r pairs_mod2_R, message = FALSE, warning = FALSE}
 pairs(mean_mod2_R, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod2_R}
+```{r grid_mod2_R, message = FALSE, warning = FALSE}
 gr_mod2_R <- ref_grid(mod_Exp_meanTotal_R, cov.keep=c("experiment"))  
 gr_emmeans_mod2_R<-as.data.frame(emmeans(gr_mod2_R, specs = c("experiment"),  
                                          level=0.95))
@@ -1322,7 +1027,7 @@ gr_emmeans_mod2_R<-as.data.frame(emmeans(gr_mod2_R, specs = c("experiment"),
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod2_R}
+```{r db_mod2_R, message = FALSE, warning = FALSE}
 mean_mod2_R<- as.data.frame(mean_mod2_R)   
 raw_Exp_TotalData_R <- Robin_mean_activity_Total[
   c("experiment", "DayNight_activity")]   #Merge the columns choosen with the data from the model 
@@ -1332,7 +1037,7 @@ plot_data_mod2_R <- merge(gr_emmeans_mod2_R, raw_Exp_TotalData_R,
 
 And, finally plotting this model
 
-```{r plot_mod2_R}
+```{r plot_mod2_R, message = FALSE, warning = FALSE}
 #| warning: false
 ggplot(mean_mod2_R, aes(x = experiment, y = emmean)) +  
   geom_jitter(data = plot_data_mod2_R, aes(x = experiment, y = DayNight_activity),     
@@ -1347,13 +1052,13 @@ ggplot(mean_mod2_R, aes(x = experiment, y = emmean)) +
 
 To check random effects contribution
 
-```{r r2_mod2_R}
+```{r r2_mod2_R, message = FALSE, warning = FALSE}
 model_performance(mod_Exp_meanTotal_R) 
 ```
 
 model comparison
 
-```{r}
+```{r null_mod2_R, message = FALSE, warning = FALSE}
 # mod_Exp_meanTotal_R<- lmer(DayNight_activity ~ experiment + (1|Ring),  
 #                            data = Robin_mean_activity_Total, na.action = na.exclude)
 null_mod3_R<-lmer(DayNight_activity ~ 1 + (1|Ring),
@@ -1366,13 +1071,13 @@ anova(null_mod3_R, mod_Exp_meanTotal_R, test="LTR")
 
 Before doing the modeling I need to subset the Willys data from Merged_data
 
-```{r WillysSubset}
+```{r WillysSubset, message = FALSE, warning = FALSE}
 Willy_act<- subset(merged_activity, Species=="Willow_Warbler")
 ```
 
 How many Willys do I have?
 
-```{r UniqueWillys}
+```{r UniqueWillys, message = FALSE, warning = FALSE}
 length(unique(Willy_act$Ring)) #me hacen falta 5 individuos Willy. BUSCAR
 ```
 
@@ -1380,7 +1085,7 @@ length(unique(Willy_act$Ring)) #me hacen falta 5 individuos Willy. BUSCAR
 
 First lets do the mean activity per Day and Night and the total activity
 
-```{r MeanDayNight_W}
+```{r MeanDayNight_W, message = FALSE, warning = FALSE}
 Willy_mean_activity_DayNight <- subset(mean_activity_DayNight, 
                                        Species=="Willow_Warbler") 
 Willy_mean_activity_Total<- subset(mean_activity_Total, 
@@ -1391,39 +1096,39 @@ Willy_mean_activity_Total<- subset(mean_activity_Total,
 
 The first random effect lineal model is the interaction between the experiment (control vs treatment) during day and night
 
-```{r mod1_W}
+```{r mod1_W, message = FALSE, warning = FALSE}
 mod_Exp_meanDayNight_W<- lmer(DayNight_activity ~ DayNight * experiment + (1|Ring),    
                               data = Willy_mean_activity_DayNight, na.action = na.exclude)
 ```
 
 To check the model fits some assumptions
 
-```{r check_mod1_W, fig.width=7, fig.height=9}
+```{r check_mod1_W, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(mod_Exp_meanDayNight_W)
 ```
 
 And the summary of the model
 
-```{r summary_mod1_W}
+```{r summary_mod1_W, message = FALSE, warning = FALSE}
 summary(mod_Exp_meanDayNight_W)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod1_W}
+```{r CI_mod1_W, message = FALSE, warning = FALSE}
 mean_mod1_W<-emmeans(mod_Exp_meanDayNight_W, ~DayNight * experiment) 
 mean_mod1_W
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod1_W}
+```{r pairs_mod1_W, message = FALSE, warning = FALSE}
 pairs(mean_mod1_W, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod1_W}
+```{r grid_mod1_W, message = FALSE, warning = FALSE}
 gr_mod1_W <- ref_grid(mod_Exp_meanDayNight_W, cov.keep=c("DayNight","experiment"))  
 gr_emmeans_mod1_W<-as.data.frame(emmeans(gr_mod1_W, specs = c("DayNight","experiment"),  
                                          level=0.95))
@@ -1431,7 +1136,7 @@ gr_emmeans_mod1_W<-as.data.frame(emmeans(gr_mod1_W, specs = c("DayNight","experi
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod1_W}
+```{r db_mod1_W, message = FALSE, warning = FALSE}
 mean_mod1_W<- as.data.frame(mean_mod1_W)  
 raw_Exp_DayNight_MeanData_W <- Willy_mean_activity_DayNight[
   c("DayNight", "experiment", "DayNight_activity")]   #Merge the columns choosen with the data from the model  
@@ -1441,38 +1146,28 @@ plot_data_mod1_W <- merge(gr_emmeans_mod1_W, raw_Exp_DayNight_MeanData_W,
 
 And, finally plotting this model
 
-```{r plot_mod1_W}
+```{r plot_mod1_W, message = FALSE, warning = FALSE}
 #| warning: false 
 ggplot(mean_mod1_W, aes(x = DayNight, y = emmean, color = experiment)) +     
-  geom_jitter(data = plot_data_mod1_W, aes(x = DayNight, y = DayNight_activity, color = experiment), alpha = 0.3) +   
-  geom_point(position = position_dodge2(width = 2), size =1.5) +   
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,    
-                 position = position_dodge2(width = 1), size=1)+  
-  facet_wrap(vars(experiment))+    labs(x = "Day/Night", y = "Estimated Marginal Mean") +   
-  ggtitle("Activity across the day per experiment")+  
-  theme_bw()
-
-
-# ggplot(mean_mod1_W, aes(x = DayNight, y = emmean, color = experiment)) +     
-#   geom_jitter(data = plot_data_mod1_W, aes(x = DayNight, y = DayNight_activity),  
-#               color="lightgray") +   
-#   geom_point(position = position_dodge2(width = 2), size =1.5) +   
-#   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,    
-#                  position = position_dodge2(width = 1), size=1)+  
-#   facet_wrap(vars(experiment))+    labs(x = "Day/Night", y = "Estimated Marginal Mean") +   
-#   ggtitle("Activity across the day per experiment")+  
-#   theme_bw()
+   geom_jitter(data = plot_data_mod1_W, aes(x = DayNight, y = DayNight_activity),  
+               color="lightgray") +   
+   geom_point(position = position_dodge2(width = 2), size =1.5) +   
+   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,    
+                  position = position_dodge2(width = 1), size=1)+  
+   facet_wrap(vars(experiment))+    labs(x = "Day/Night", y = "Estimated Marginal Mean") +   
+   ggtitle("Activity across the day per experiment")+  
+   theme_bw()
 ```
 
 To check random effects contribution
 
-```{r r2_mod1_W}
+```{r r2_mod1_W, message = FALSE, warning = FALSE}
 model_performance(mod_Exp_meanDayNight_W)
 ```
 
 model comparison
 
-```{r}
+```{r null_mod1_W, message = FALSE, warning = FALSE}
 # mod_Exp_meanDayNight_W<- lmer(DayNight_activity ~ DayNight * experiment + (1|Ring),    
 #                               data = Willy_mean_activity_DayNight, na.action = na.exclude)
 null_mod1_W<-lmer(DayNight_activity ~ 1 + (1|Ring),
@@ -1485,39 +1180,39 @@ anova(null_mod1_W, mod_Exp_meanDayNight_W, test="LTR")
 
 The first random effect lineal model is the interaction between the experiment (control vs treatment) during day and night
 
-```{r mod2_W}
+```{r mod2_W, message = FALSE, warning = FALSE}
 mod_Exp_meanTotal_W<- lmer(DayNight_activity ~ experiment + (1|Ring),     
                            data = Willy_mean_activity_Total, na.action = na.exclude)
 ```
 
 To check the model fits some assumptions
 
-```{r check_mod2_W, fig.width=7, fig.height=9}
+```{r check_mod2_W, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(mod_Exp_meanTotal_W)
 ```
 
 And the summary of the model
 
-```{r summary_mod2_W}
+```{r summary_mod2_W, message = FALSE, warning = FALSE}
 summary(mod_Exp_meanTotal_W)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod2_W}
+```{r CI_mod2_W, message = FALSE, warning = FALSE}
 mean_mod2_W<-emmeans(mod_Exp_meanTotal_W, ~ experiment)  
 mean_mod2_W
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod2_W}
+```{r pairs_mod2_W, message = FALSE, warning = FALSE}
 pairs(mean_mod2_W, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod2_W}
+```{r grid_mod2_W, message = FALSE, warning = FALSE}
 gr_mod2_W <- ref_grid(mod_Exp_meanTotal_W, cov.keep=c("experiment"))   
 gr_emmeans_mod2_W<-as.data.frame(emmeans(gr_mod2_W, specs = c("experiment"), 
                                          level=0.95))
@@ -1525,7 +1220,7 @@ gr_emmeans_mod2_W<-as.data.frame(emmeans(gr_mod2_W, specs = c("experiment"),
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod2_W}
+```{r db_mod2_W, message = FALSE, warning = FALSE}
 mean_mod2_W<- as.data.frame(mean_mod2_W)  
 raw_Exp_TotalData_W <- Willy_mean_activity_Total[
   c("experiment", "DayNight_activity")]   #Merge the columns choosen with the data from the model  
@@ -1535,7 +1230,7 @@ plot_data_mod2_W <- merge(gr_emmeans_mod2_W, raw_Exp_TotalData_W,
 
 And, finally plotting this model
 
-```{r plot_mod2_W}
+```{r plot_mod2_W, message = FALSE, warning = FALSE}
 #| warning: false 
 ggplot(mean_mod2_W, aes(x = experiment, y = emmean)) +    
   geom_jitter(data = plot_data_mod2_W, aes(x = experiment, y = DayNight_activity),  
@@ -1550,13 +1245,13 @@ ggplot(mean_mod2_W, aes(x = experiment, y = emmean)) +
 
 To check random effects contribution
 
-```{r r2_mod2_W}
+```{r r2_mod2_W, message = FALSE, warning = FALSE}
 model_performance(mod_Exp_meanTotal_W) 
 ```
 
 model comparison
 
-```{r}
+```{r null_mod2_W, message = FALSE, warning = FALSE}
 # mod_Exp_meanTotal_W<- lmer(DayNight_activity ~ experiment + (1|Ring),     
 #                            data = Willy_mean_activity_Total, na.action = na.exclude)
 null_mod3_W<-lmer(DayNight_activity ~ 1 + (1|Ring),
@@ -1568,6 +1263,8 @@ anova(null_mod3_W, mod_Exp_meanTotal_W, test="LTR")
 ## Actograms
 
 To produce the actograms first I need to organize the data again.
+
+This plots are not shown in the paper. This was my academic exercise to try to recreate actograms with my data. The data shown in the paper was generated by one of the authors using other coding methods. Please, refer to those plots in the need of clarification.
 
 All the plots here are produced as a modified version of the function "actogram in the"digiRythm" package
 
@@ -1890,67 +1587,64 @@ ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
 This model is the interaction between the experiment (control vs treatment) during day and night and taking into account the week of capture but also having as a random effect the species.
 
 ```{r mod1s}
-mod_Exp_meanDayNight_Week_s<- lmer(DayNight_activity ~ DayNight * experiment + Week + (1|Ring) + (1|Species), data = mean_activity_DayNight, na.action = na.exclude)
+#mod_Exp_meanDayNight_Week_s<- lmer(DayNight_activity ~ DayNight * experiment + Week + (1|Ring) + (1|Species), data = mean_activity_DayNight, na.action = na.exclude)
 ```
 
 To check the model fits some assumptions
 
 ```{r check_mod1s, fig.width=7, fig.height=9}
-check_model(mod_Exp_meanDayNight_Week_s)
+#check_model(mod_Exp_meanDayNight_Week_s)
 ```
 
 And the summary of the model
 
 ```{r summary_mod1s}
-summary(mod_Exp_meanDayNight_Week_s)
+#summary(mod_Exp_meanDayNight_Week_s)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
 ```{r CI_mod1s}
-mean_mod1s_week<-emmeans(mod_Exp_meanDayNight_Week_s, ~DayNight * experiment + Week)
-mean_mod1s_week
+#mean_mod1s_week<-emmeans(mod_Exp_meanDayNight_Week_s, ~DayNight * experiment + Week)
+#mean_mod1s_week
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
 ```{r pairs_mod1s}
-pairs(mean_mod1s_week, adjust=NULL)
+#pairs(mean_mod1s_week, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
 ```{r grid_mod1s}
-gr_mod1s_week <- ref_grid(mod_Exp_meanDayNight_Week_s, cov.keep=c("DayNight","experiment","Week"))
-gr_emmeans_mod1s_week<-as.data.frame(emmeans(gr_mod1s_week, specs = c("DayNight","experiment","Week"), 
-                                        level=0.95))
+#gr_mod1s_week <- ref_grid(mod_Exp_meanDayNight_Week_s, cov.keep=c("DayNight","experiment","Week"))
+#gr_emmeans_mod1s_week<-as.data.frame(emmeans(gr_mod1s_week, specs = c("DayNight","experiment","Week"), level=0.95))
 ```
 
 Now, to define the information we will use to plot the data
 
 ```{r db_mod1s}
-mean_mod1_weeks<-as.data.frame(mean_mod1s_week)
-raw_Exp_DayNight_MeanData <- mean_activity_DayNight[
-  c("DayNight", "experiment", "DayNight_activity","Week")]
-plot_data_mod1s_week <- merge(gr_emmeans_mod1s_week, raw_Exp_DayNight_MeanData, 
-                         by = c("DayNight", "experiment"))
+#mean_mod1_weeks<-as.data.frame(mean_mod1s_week)
+#raw_Exp_DayNight_MeanData <- mean_activity_DayNight[c("DayNight", "experiment", "DayNight_activity","Week")]
+#plot_data_mod1s_week <- merge(gr_emmeans_mod1s_week, raw_Exp_DayNight_MeanData, by = c("DayNight", "experiment"))
 ```
 
 And, finally plotting this model
 
 ```{r plot_mod1s}
 #| warning: false 
-ggplot(mean_mod1s_week, aes(x = DayNight, y = emmean, color = experiment)) +
-  geom_jitter(data = plot_data_mod1s_week, 
-              aes(x = DayNight, y = DayNight_activity, color=experiment),
-              alpha=0.3) +
-  geom_point(position = position_dodge2(width = 2), size =1.5) +
-  geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
-                 position = position_dodge2(width = 1), size=1)+
-  facet_wrap(vars(Week))+
-  labs(x = "Day/Night", y = "Estimated Marginal Mean") +
-  ggtitle("Activity across the day per experiment")+
-  theme_bw()
+# ggplot(mean_mod1s_week, aes(x = DayNight, y = emmean, color = experiment)) +
+#   geom_jitter(data = plot_data_mod1s_week, 
+#               aes(x = DayNight, y = DayNight_activity, color=experiment),
+#               alpha=0.3) +
+#   geom_point(position = position_dodge2(width = 2), size =1.5) +
+#   geom_linerange(aes(ymin = lower.CL, ymax = upper.CL), alpha = 0.5,
+#                  position = position_dodge2(width = 1), size=1)+
+#   facet_wrap(vars(Week))+
+#   labs(x = "Day/Night", y = "Estimated Marginal Mean") +
+#   ggtitle("Activity across the day per experiment")+
+#   theme_bw()
 ```
 
 ### 
