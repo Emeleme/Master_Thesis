@@ -7,7 +7,7 @@ editor: visual
 
 This document has the codes and figures generated for Maria Laura's Master thesis - Activity analysis for autumn season.
 
-```{r}
+```{r setup, message = FALSE, warning = FALSE}
 #| echo: false 
 library(knitr) 
 opts_chunk$set(fig.align='center', fig.width=6, fig.height=4.2,  
@@ -18,9 +18,7 @@ opts_chunk$set(fig.align='center', fig.width=6, fig.height=4.2,
 
 First, these are the libraries used to run this code.
 
-```{r Libraries}
-#| output: false 
-#| warning: false  
+```{r Libraries, message = FALSE, warning = FALSE}
 library(RSQLite) 
 library(ggplot2) 
 library(scales) 
@@ -52,14 +50,14 @@ library(ggpubr)
 
 First, set the directory to wherever the documents are. Use setw() function.
 
-```{r Directory}
+```{r Directory, message = FALSE, warning = FALSE}
 #| include: false 
 setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/Autumn/Stensoffa/Stensoffa_activity_copia/2023_Robin_MariaLaura")
 ```
 
 Second, connecting to the database .db to get all the raw activity data. This figure is saved as an aditional file.
 
-```{r .db}
+```{r db, message = FALSE, warning = FALSE}
 #| output: false 
 #Code made by Giuseppe Bianco
 # db.act<-data.frame()
@@ -162,15 +160,15 @@ load.and.save.activity.data <- function()
 }
 ```
 
-When we load the workspace th database should be available
+When we load the workspace th database that we just produced should be available
 
-```{r RWorkspace}
+```{r RWorkspace, message = FALSE, warning = FALSE}
 load("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/Autumn/Stensoffa/Stensoffa_activity_copia/2023_Robin_MariaLaura/Robin_Daylength_Activity_RAW.RData", .GlobalEnv)
 ```
 
 Now lets plot the raw data. This figure is saved as an aditional file
 
-```{r plot_raw}
+```{r plot_raw, message = FALSE, warning = FALSE}
 #Code made by Giuseppe Bianco
 plot.activity.all.by.house <- function(db = db.act)
 {
@@ -257,15 +255,17 @@ plot.activity.all.by.house <- function(db = db.act)
 
 ```
 
+Now I can set up the data I will work with from now in this code.
+
 Let's set the db to work with
 
-```{r stf_data}
+```{r stf_data, message = FALSE, warning = FALSE}
 stf_data<-db.act
 ```
 
 We can extract time as a separate column
 
-```{r stf_time}
+```{r stf_time, message = FALSE, warning = FALSE}
 stf_data$time <- format(as.POSIXct(
   stf_data$DateTime),format = "%H:%M:%S") #extract time as a column
 stf_data$HourDecimal <- apply(
@@ -321,7 +321,7 @@ Now I have a database that I can use to do the models and figures.
 
 Before doing the modeling I need to delete the feeding time for all days. There's a column with values TRUE when feeding so I just need to remove them
 
-```{r Feeding-}
+```{r Feeding-, message = FALSE, warning = FALSE}
 stf_data <- dplyr::filter(stf_data, Feeding.1h != TRUE)
 ```
 
@@ -329,7 +329,7 @@ stf_data <- dplyr::filter(stf_data, Feeding.1h != TRUE)
 
 First lets do the mean activity per Day and Night
 
-```{r MeanDayNight}
+```{r MeanDayNight, message = FALSE, warning = FALSE}
 setDT(stf_data)
 stf_mean_activity_DayNight <- stf_data[, .(DayNight_activity = mean(FlyTimeRatio, na.rm = TRUE)), 
                                        by = .(Ring, DayNight, Setup, Species, Day)]
@@ -340,7 +340,7 @@ hist(stf_mean_activity_DayNight$DayNight_activity, breaks = 1800)
 
 Now let's calculate the mean activity per day
 
-```{r MeanTotal}
+```{r MeanTotal, message = FALSE, warning = FALSE}
 stf_mean_activity_Total<-stf_data[, .(DayNight_activity = mean(FlyTimeRatio, na.rm = TRUE)), 
                                   by = .(Ring, Setup, Species, Day)]
 stf_mean_activity_Total<-as.data.frame(stf_mean_activity_Total)
@@ -350,9 +350,9 @@ hist(stf_mean_activity_Total$DayNight_activity, breaks=1800)
 
 ### Model 1: Experiment \* DayNight
 
-The first random effect lineal model is the interaction between the experiment (control vs treatment) during day and night
+The first random effect lineal model is the activity by Day or night per setup (contrl vs treatment) per day, having as a random effect the individual (ring)
 
-```{r mod1}
+```{r mod1, message = FALSE, warning = FALSE}
 stf_mod_Exp_meanDayNight<- lmer(DayNight_activity ~ DayNight * Setup * Day + 
                                   (1|Ring), 
                                 data = stf_mean_activity_DayNight, 
@@ -361,32 +361,32 @@ stf_mod_Exp_meanDayNight<- lmer(DayNight_activity ~ DayNight * Setup * Day +
 
 To check the model fits some assumptions
 
-```{r check_mod1, fig.width=7, fig.height=9}
+```{r check_mod1, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(stf_mod_Exp_meanDayNight)
 ```
 
 And the summary of the model
 
-```{r summary_mod1}
+```{r summary_mod1, message = FALSE, warning = FALSE}
 summary(stf_mod_Exp_meanDayNight)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod1}
+```{r CI_mod1, message = FALSE, warning = FALSE}
 stf_mean_mod1<-emmeans(stf_mod_Exp_meanDayNight, ~DayNight * Setup * Day) 
 stf_mean_mod1
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod1}
+```{r pairs_mod1, message = FALSE, warning = FALSE}
 pairs(stf_mean_mod1)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod1}
+```{r grid_mod1, message = FALSE, warning = FALSE}
 #| warning: false 
 stf_gr_mod1 <- ref_grid(stf_mod_Exp_meanDayNight, 
                         cov.keep=c("DayNight","Setup","Day")) 
@@ -396,7 +396,9 @@ stf_gr_emmeans_mod1<-as.data.frame(emmeans(stf_gr_mod1,
                                            level=0.95))
 ```
 
-```{r pairs_table_mod1}
+This are the p-values for each pair of days and day/night. These p-values are to table
+
+```{r pairs_table_mod1, message = FALSE, warning = FALSE}
 stf_pval_mod1<-emmeans(stf_gr_mod1, specs = c("DayNight","Setup", "Day"),
                        at = list(Days = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14)),
                        level=0.95)
@@ -405,7 +407,7 @@ stf_pval_mod1_df<-as.data.frame(pairs(stf_pval_mod1, adjust=NULL))
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod1}
+```{r db_mod1, message = FALSE, warning = FALSE}
 stf_mean_mod1<- as.data.frame(stf_mean_mod1) 
 stf_raw_Exp_DayNight_MeanData <- stf_mean_activity_DayNight[
   c("DayNight", "Setup", "DayNight_activity", "Day")]  
@@ -416,7 +418,7 @@ stf_plot_data_mod1 <- merge(stf_gr_emmeans_mod1, stf_raw_Exp_DayNight_MeanData,
 
 And, finally plotting this model
 
-```{r plot_mod1}
+```{r plot_mod1, message = FALSE, warning = FALSE}
 #| warning: false 
 ggplot(stf_gr_emmeans_mod1, aes(x = Day, y = emmean, color = DayNight)) +  
     scale_color_manual(labels = c("Light", "Dark"), values = c("tan3", "gray26"))+
@@ -431,55 +433,59 @@ ggplot(stf_gr_emmeans_mod1, aes(x = Day, y = emmean, color = DayNight)) +
 ```
 
 Lets chech the r2
+rcond: Represents the proportion of variance explained by the entire model, including both fixed effects and random effects.
+rmarg: Represents the proportion of variance explained solely by the fixed effects
 
-```{r perform_mod1}
+```{r perform_mod1, message = FALSE, warning = FALSE}
 model_performance(stf_mod_Exp_meanDayNight) 
 
 ```
 
 ### Model 3: Experiment
 
-The second random effect lineal model is the interaction between the experiment (control vs treatment) during day and night and breeding distribution
+The second random effect lineal model is the total activity with the interaction between the experiment setup (control vs treatment) per day
 
-```{r mod3}
+```{r mod3, message = FALSE, warning = FALSE}
 stf_mod_Exp_meanTotal<- lmer(DayNight_activity ~ Setup * Day + (1|Ring),                        
                          data = stf_mean_activity_Total, na.action = na.exclude)
 ```
 
 To check the model fits some assumptions
 
-```{r check_mod3, fig.width=7, fig.height=9}
+```{r check_mod3, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 check_model(stf_mod_Exp_meanTotal)
 ```
 
 And the summary of the model
 
-```{r summary_mod3}
+```{r summary_mod3, message = FALSE, warning = FALSE}
 summary(stf_mod_Exp_meanTotal)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod3}
+```{r CI_mod3, message = FALSE, warning = FALSE}
 stf_total_mod3<-emmeans(stf_mod_Exp_meanTotal, ~Setup * Day) 
 stf_total_mod3
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod3}
+```{r pairs_mod3, message = FALSE, warning = FALSE}
 pairs(stf_total_mod3)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod3}
+```{r grid_mod3, message = FALSE, warning = FALSE}
 stf_gr_mod3 <- ref_grid(stf_mod_Exp_meanTotal, cov.keep=c("Setup", "Day"))
 stf_gr_emmeans_mod3<-as.data.frame(emmeans(stf_gr_mod3, specs = c("Setup", "Day"), 
       level=0.95))
 ```
 
-```{r pairs_table_mod3}
+Here, again, is the table with the whole comparison between days for the model
+
+```{r pairs_table_mod3, message = FALSE, warning = FALSE}
 stf_pval_mod3<-emmeans(stf_gr_mod3, specs = c("Setup", "Day"),
                        at = list(Days = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14)),
                        level=0.95)
@@ -488,7 +494,7 @@ stf_pval_mod3_df<-as.data.frame(pairs(stf_pval_mod3, adjust=NULL))
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod3}
+```{r db_mod3, message = FALSE, warning = FALSE}
 stf_total_mod3<-as.data.frame(stf_total_mod3) 
 stf_raw_Exp_DayNight_TotalData <- stf_mean_activity_Total[c("Setup", "Day", "DayNight_activity")] 
 stf_plot_data_mod3 <- merge(stf_gr_emmeans_mod3, stf_raw_Exp_DayNight_TotalData, 
@@ -497,7 +503,7 @@ stf_plot_data_mod3 <- merge(stf_gr_emmeans_mod3, stf_raw_Exp_DayNight_TotalData,
 
 And, finally plotting this model
 
-```{r plot_mod3}
+```{r plot_mod3, message = FALSE, warning = FALSE}
 #| warning: false   
 ggplot(stf_gr_emmeans_mod3, aes(x = Day, y = emmean, color=Setup)) +   
     geom_jitter(data = stf_plot_data_mod3, aes(x = Day, y = DayNight_activity, color=Setup),
@@ -512,7 +518,7 @@ ggplot(stf_gr_emmeans_mod3, aes(x = Day, y = emmean, color=Setup)) +
 
 Lets chech the r2
 
-```{r perform_mod3}
+```{r perform_mod3, message = FALSE, warning = FALSE}
 model_performance(stf_mod_Exp_meanTotal) 
 
 ```
@@ -521,13 +527,16 @@ model_performance(stf_mod_Exp_meanTotal)
 
 To check each model against a null model and then a comparison between all of the models all together. First lets define the null models, the null models are the same as the models proposed above (only using the ones corrected by species), but without using the factors, instead those are going to be 1.
 
-```{r null_mod1}
+Comparison null model and model 1 (act Day/Night per setup, Day or night per day)
+
+```{r null_mod1, message = FALSE, warning = FALSE}
 null_mod1_R<-lmer(DayNight_activity ~ 1 + (1|Ring), 
                 data = stf_mean_activity_DayNight, na.action = na.exclude)
 anova(stf_mod_Exp_meanDayNight, null_mod1_R, test="LTR")
 ```
+Comparison null model and model 3 (actTotal per setup per day)
 
-```{r null_mod3}
+```{r null_mod3, message = FALSE, warning = FALSE}
 null_mod3_R<-lmer(DayNight_activity ~ 1 + (1|Ring),
                 data = stf_mean_activity_Total, na.action = na.exclude)
 anova(stf_mod_Exp_meanTotal, null_mod3_R, test="LTR")
@@ -535,24 +544,26 @@ anova(stf_mod_Exp_meanTotal, null_mod3_R, test="LTR")
 
 ## Actograms
 
+This actograms did not make it to the paper. I have this code here because I wanted to produce them during the thesis. Will it be useful in the furture? I don't know. I never know.
+
 To produce the actograms first I need to organize the data again.
 
 All the plots here are produced as a modified version of the function "actogram in the"digiRythm" package
 
-```{r stf_actogram_raw}
+```{r stf_actogram_raw, message = FALSE, warning = FALSE}
 stf_data_actogram_raw<-as.data.frame(stf_data) #use stf_data as input 
 ```
 
 Set the "Activity" column as the activity that is going to be plotted
 
-```{r alias_activity}
+```{r alias_activity, message = FALSE, warning = FALSE}
 stf_activity = names(stf_data_actogram_raw)[7]
 stf_activity_alias<-"activity"
 ```
 
 Set the date and time as columns in the data
 
-```{r actogram_datetime}
+```{r actogram_datetime, message = FALSE, warning = FALSE}
 stf_data_actogram_raw <- stf_data_actogram_raw %>%  
    mutate(date = as_date(DateTime),      
           time = format(DateTime, format = "%H:%M", tz = "CET")) #set date and time columns}
@@ -560,7 +571,7 @@ stf_data_actogram_raw <- stf_data_actogram_raw %>%
 
 And the actogram can be plotted now
 
-```{r actogram_Ring}
+```{r actogram_Ring, message = FALSE, warning = FALSE}
 ggplot(stf_data_actogram_raw, aes(x = time, y = date, fill = !!sym(stf_activity)))+
   geom_tile()+
   facet_wrap(Setup ~ Ring)+
