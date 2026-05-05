@@ -527,7 +527,7 @@ plot_data_mod1s <- merge(gr_emmeans_mod1s, raw_Exp_DayNight_MeanData,
 
 And, finally plotting this model
 
-```{r MeanActivityPerStage_plot, fig.path = "figures/", message = FALSE, warning = FALSE}
+```{r MeanActivityPerStage_plot, dev = "pdf", message = FALSE, warning = FALSE}
 ggplot(mean_mod1s, aes(x = DayNight, y = emmean)) +
   geom_jitter(data = plot_data_mod1s, 
               aes(x = DayNight, y = DayNight_activity, color=Species), 
@@ -1268,7 +1268,7 @@ This plots are not shown in the paper. This was my academic exercise to try to r
 
 All the plots here are produced as a modified version of the function "actogram in the"digiRythm" package
 
-```{r actogram_raw}
+```{r actogram_raw, message = FALSE, warning = FALSE}
 data_actogram_raw<-as.data.frame(merged_activity) #use merged_activity as input
 #Make datetime a POSIXct element
 data_actogram_raw$datetime<-as.POSIXct(data_actogram_raw$datetime) 
@@ -1284,14 +1284,14 @@ data_actogram_raw <- subset(data_actogram_raw,
 
 Set the "Activity" column as the activity that is going to be plotted
 
-```{r alias_activity}
+```{r alias_activity, message = FALSE, warning = FALSE}
 activity = names(data_actogram_raw)[2]
 activity_alias<-"activity"
 ```
 
 Set the date and time as columns in the data
 
-```{r actogram_datetime}
+```{r actogram_datetime, message = FALSE, warning = FALSE}
 data_actogram_filter <- data_actogram_raw %>%
   #set date and time columns
   mutate(date = as_date(datetime),
@@ -1302,7 +1302,7 @@ data_actogram_filter <- data_actogram_raw %>%
 
 Lets set the dates where week 1 took place, as well as the sunrise and sunset times. All times are round to the closest slot of time as the original data was "taken" every 20min starting at 00:10
 
-```{r w1_times}
+```{r w1_times, message = FALSE, warning = FALSE}
 start_w1 <- "2023-04-20 02:10:00"
 end_w1 <- "2023-04-26 23:50:00"
 sunrise_w1<-"05:30" #real 05:34
@@ -1311,14 +1311,14 @@ sunset_w1<-"20:10" #real 20:11 -1h emlen
 
 Now, to fit the data to the dates we set
 
-```{r dataplot_w1}
+```{r dataplot_w1, message = FALSE, warning = FALSE}
 data_to_plot_w1 <- data_actogram_filter %>%
   filter(date >= start_w1 & date <= end_w1)
 ```
 
 And the actogram can be plotted now
 
-```{r plot_w1, fig.width=10, fig.height=10}
+```{r plot_w1, fig.width=10, fig.height=10, message = FALSE, warning = FALSE}
 #| warning: false 
 ggplot(data_to_plot_w1, aes(x = time, y = date, fill = !!sym(activity))) +
   geom_tile() +
@@ -1345,7 +1345,7 @@ ggplot(data_to_plot_w1, aes(x = time, y = date, fill = !!sym(activity))) +
 
 Lets set the dates where week 2 took place, as well as the sunrise and sunset times. All times are round to the closest slot of time as the original data was "taken" every 20min starting at 00:10
 
-```{r w2_times}
+```{r w2_times, message = FALSE, warning = FALSE}
 start_w2 <- "2023-04-28 02:10:00"
 end_w2 <- "2023-05-04 23:50:00"
 sunrise_w2<-"05:10" #real 05:14
@@ -1354,14 +1354,14 @@ sunset_w2<-"20:30" #real 20:28 -1h emlen
 
 Now, to fit the data to the dates we set
 
-```{r dataplot_w2}
+```{r dataplot_w2, message = FALSE, warning = FALSE}
 data_to_plot_w2 <- data_actogram_filter %>%
   filter(date >= start_w2 & date <= end_w2)
 ```
 
 And the actogram can be plotted now
 
-```{r plot_w2, fig.width=10, fig.height=10}
+```{r plot_w2, fig.width=10, fig.height=10, message = FALSE, warning = FALSE}
 #| warning: false 
 ggplot(data_to_plot_w2, aes(x = time, y = date, fill = !!sym(activity))) +
   geom_tile() +
@@ -1388,7 +1388,7 @@ ggplot(data_to_plot_w2, aes(x = time, y = date, fill = !!sym(activity))) +
 
 Lets set the dates where week 3 took place, as well as the sunrise and sunset times. All times are round to the closest slot of time as the original data was "taken" every 20min starting at 00:10
 
-```{r w3_times}
+```{r w3_times, message = FALSE, warning = FALSE}
 start_w3 <- "2023-05-08 02:10:00"
 end_w3 <- "2023-05-14 23:50:00"
 sunrise_w3<-"04:50" #real 04:51
@@ -1397,14 +1397,14 @@ sunset_w3<-"20:50" #real 20:49 -1h emlen
 
 Now, to fit the data to the dates we set
 
-```{r dataplot_w3}
+```{r dataplot_w3, message = FALSE, warning = FALSE}
 data_to_plot_w3 <- data_actogram_filter %>%
   filter(date >= start_w3 & date <= end_w3)
 ```
 
 And the actogram can be plotted now
 
-```{r plot_w3, fig.width=10, fig.height=10}
+```{r plot_w3, fig.width=10, fig.height=10, message = FALSE, warning = FALSE}
 #| warning: false 
 ggplot(data_to_plot_w3, aes(x = time, y = date, fill = !!sym(activity))) +
   geom_tile() +
@@ -1431,7 +1431,7 @@ ggplot(data_to_plot_w3, aes(x = time, y = date, fill = !!sym(activity))) +
 
 Lets set the dates where week 4 took place, as well as the sunrise and sunset times. All times are round to the closest slot of time as the original data was "taken" every 20min starting at 00:10
 
-```{r w4_times}
+```{r w4_times, message = FALSE, warning = FALSE}
 start_w4 <- "2023-05-16 02:10:00"
 end_w4 <- "2023-05-22 23:50:00"
 sunrise_w4<-"04:30" #real 04:35
@@ -1440,14 +1440,14 @@ sunset_w4<-"21:10" #real 21:05 -1h emlen
 
 Now, to fit the data to the dates we set
 
-```{r dataplot_w4}
+```{r dataplot_w4, message = FALSE, warning = FALSE}
 data_to_plot_w4 <- data_actogram_filter %>%
   filter(date >= start_w4 & date <= end_w4)
 ```
 
 And the actogram can be plotted now
 
-```{r plot_w4, fig.width=11, fig.height=11}
+```{r plot_w4, fig.width=11, fig.height=11, message = FALSE, warning = FALSE}
 #| warning: false 
 ggplot(data_to_plot_w4, aes(x = time, y = date, fill = !!sym(activity))) +
   geom_tile() +
@@ -1475,7 +1475,7 @@ ggplot(data_to_plot_w4, aes(x = time, y = date, fill = !!sym(activity))) +
 
 Lets set the dates where week 5 took place, as well as the sunrise and sunset times. All times are round to the closest slot of time as the original data was "taken" every 20min starting at 00:10
 
-```{r w5_times}
+```{r w5_times, message = FALSE, warning = FALSE}
 start_w5 <- "2023-05-25 02:10:00"
 end_w5 <- "2023-05-31 23:50:00"
 sunrise_w5<-"04:10" #real 04:19
@@ -1484,14 +1484,14 @@ sunset_w5<-"21:30" #real 21:21 -1h emlen
 
 Now, to fit the data to the dates we set
 
-```{r dataplot_w5}
+```{r dataplot_w5, message = FALSE, warning = FALSE}
 data_to_plot_w5 <- data_actogram_filter %>%
   filter(date >= start_w5 & date <= end_w5)
 ```
 
 And the actogram can be plotted now
 
-```{r plot_w5, fig.width=11, fig.height=11}
+```{r plot_w5, fig.width=11, fig.height=11, message = FALSE, warning = FALSE}
 #| warning: false 
 ggplot(data_to_plot_w5, aes(x = time, y = date, fill = !!sym(activity))) +
   geom_tile() +
@@ -1520,20 +1520,20 @@ ggplot(data_to_plot_w5, aes(x = time, y = date, fill = !!sym(activity))) +
 
 Lets set the days that are going to be plotted
 
-```{r day_times}
+```{r day_times, message = FALSE, warning = FALSE}
 start_day <- "1"
 end_day <- "7"
 ```
 
 In this ones Im using all the database
 
-```{r dataplot_day}
+```{r dataplot_day, message = FALSE, warning = FALSE}
 data_to_plot_day <- data_actogram_filter
 ```
 
 And the actogram can be plotted now
 
-```{r plot_day}
+```{r plot_day, message = FALSE, warning = FALSE}
 #| warning: false  
 ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
   geom_tile() +
@@ -1553,7 +1553,7 @@ ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
 
 #### Per Breeding distribution
 
-```{r plot_breeding}
+```{r plot_breeding, message = FALSE, warning = FALSE}
 #| warning: false  
 ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
   geom_tile() +
@@ -1578,7 +1578,7 @@ ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
 
 (Before modeling) Three Willow Warblers does not meet the criteria to be included into the analysis (They fall into the gray zone where northern and southern willow warblers cant be separated). So, I needed to delete them.
 
-```{r Willys-}
+```{r Willys-, message = FALSE, warning = FALSE}
 #merged_activity <- merged_activity %>%  
 #  filter(!Ring %in% c("DK53569"))
 ```
@@ -1586,45 +1586,45 @@ ggplot(data_to_plot_day, aes(x = time, y = DayNumber, fill = !!sym(activity))) +
 
 This model is the interaction between the experiment (control vs treatment) during day and night and taking into account the week of capture but also having as a random effect the species.
 
-```{r mod1s}
+```{r mod1s, message = FALSE, warning = FALSE}
 #mod_Exp_meanDayNight_Week_s<- lmer(DayNight_activity ~ DayNight * experiment + Week + (1|Ring) + (1|Species), data = mean_activity_DayNight, na.action = na.exclude)
 ```
 
 To check the model fits some assumptions
 
-```{r check_mod1s, fig.width=7, fig.height=9}
+```{r check_mod1s, fig.width=7, fig.height=9, message = FALSE, warning = FALSE}
 #check_model(mod_Exp_meanDayNight_Week_s)
 ```
 
 And the summary of the model
 
-```{r summary_mod1s}
+```{r summary_mod1s, message = FALSE, warning = FALSE}
 #summary(mod_Exp_meanDayNight_Week_s)
 ```
 
 Lets calculate the means and the confidence intervals for the model
 
-```{r CI_mod1s}
+```{r CI_mod1s, message = FALSE, warning = FALSE}
 #mean_mod1s_week<-emmeans(mod_Exp_meanDayNight_Week_s, ~DayNight * experiment + Week)
 #mean_mod1s_week
 ```
 
 Here we can see the p-values associated to the model. Have into account that the important part is that the estimate from the model doesn't fall into the upper and lower C.I. in the model (see above). This is for statistical interpretation
 
-```{r pairs_mod1s}
+```{r pairs_mod1s, message = FALSE, warning = FALSE}
 #pairs(mean_mod1s_week, adjust=NULL)
 ```
 
 Lets calculate the marginal mean for the model and make it a data frame which we can use to plot
 
-```{r grid_mod1s}
+```{r grid_mod1s, message = FALSE, warning = FALSE}
 #gr_mod1s_week <- ref_grid(mod_Exp_meanDayNight_Week_s, cov.keep=c("DayNight","experiment","Week"))
 #gr_emmeans_mod1s_week<-as.data.frame(emmeans(gr_mod1s_week, specs = c("DayNight","experiment","Week"), level=0.95))
 ```
 
 Now, to define the information we will use to plot the data
 
-```{r db_mod1s}
+```{r db_mod1s, message = FALSE, warning = FALSE}
 #mean_mod1_weeks<-as.data.frame(mean_mod1s_week)
 #raw_Exp_DayNight_MeanData <- mean_activity_DayNight[c("DayNight", "experiment", "DayNight_activity","Week")]
 #plot_data_mod1s_week <- merge(gr_emmeans_mod1s_week, raw_Exp_DayNight_MeanData, by = c("DayNight", "experiment"))
@@ -1632,7 +1632,7 @@ Now, to define the information we will use to plot the data
 
 And, finally plotting this model
 
-```{r plot_mod1s}
+```{r plot_mod1s, message = FALSE, warning = FALSE}
 #| warning: false 
 # ggplot(mean_mod1s_week, aes(x = DayNight, y = emmean, color = experiment)) +
 #   geom_jitter(data = plot_data_mod1s_week, 
