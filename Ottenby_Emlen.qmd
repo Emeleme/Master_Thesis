@@ -7,16 +7,16 @@ editor_options:
   chunk_output_type: console
 ---
 
-## 
+This document has the codes and figures generated for Maria Laura's Master thesis - Orientation analysis for spring season 2023.
 
-```{r}
+```{r setup, message = FALSE, warning = FALSE}
 #| output: FALSE 
 setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database")
 ```
 
 For running this script you need the following packages installed in your workspace:
 
-```{r libraries, output=FALSE, include=TRUE, warning=FALSE}
+```{r libraries, message = FALSE, warning=FALSE}
 library(usethis) #To use github
 library(knitr) #to use markdown
 library(circular) #to perform circular statistics
@@ -52,7 +52,7 @@ library(emmeans)
 
 Lets read the table with the Emlen data
 
-```{r database}
+```{r database, message = FALSE, warning=FALSE}
 #| output: false
 #| include: false
 Emlen_IndData<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/EmlenData_Spring2023.txt", h=T)
@@ -60,7 +60,7 @@ Emlen_IndData<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Anim
 
 Let's change the names of the columns for the middle of the angles the sector has
 
-```{r newSectorNames}
+```{r newSectorNames, message = FALSE, warning=FALSE}
 setnames(Emlen_IndData, old=c("S1","S2","S3","S4","S5","S6","S7","S8","S9",
                               "S10","S11","S12","S13","S14","S15","S16","S17",
                               "S18","S19","S20","S21","S22","S23","S24"), 
@@ -73,20 +73,22 @@ setnames(Emlen_IndData, old=c("S1","S2","S3","S4","S5","S6","S7","S8","S9",
 
 To add an identification to every Emlen experiment, because there are more than one experiment per ring
 
-```{r DirectionTable}
+```{r DirectionTable, message = FALSE, warning=FALSE}
 Emlen_IndData<-tibble::rowid_to_column(Emlen_IndData, "Identificator")
 ```
 
 Let's define two functions that are going to be helpful handling circular data because there's functions that need the data input in degrees and others in radians. With this functions I can change it easily
 
-```{r DegRad_Functions}
+```{r DegRad_Functions, message = FALSE, warning=FALSE}
 deg2rad <- function(deg) {(deg * pi) / (180)} #converts degrees to radians.
 rad2deg <- function(rad) {(rad * 180) / (pi)} #converts radians to degrees.
 ```
 
 Later Im gonna need to adjust some negative values and some values above 360 si I defined this function for it:
 
-```{r adjust360_fun}
+Cleaning this code I realized that I don't know how I thought about this. I can't think right now on how to do functions or search for them (I am quite sure this is not my creation, but I had the idea that it could be useful). Lost train of thinking I guess.
+
+```{r adjust360_fun, message = FALSE, warning=FALSE}
 adjust_360 <- function(x) {
   if (is.numeric(x)) {
     x <- ifelse(!is.na(x) & x < 0, x + 360, x)
@@ -99,7 +101,7 @@ adjust_360 <- function(x) {
 
 Now, lets organize the dates in the table
 
-```{r Weeks}
+```{r Weeks, message = FALSE, warning=FALSE}
 Emlen_IndData$Date<-lubridate::dmy(Emlen_IndData$Date)
 Emlen_IndData <- Emlen_IndData %>%
   mutate(Week = case_when(
@@ -114,7 +116,7 @@ Emlen_IndData <- Emlen_IndData %>%
 
 This code makes the reppetition of the angles to a long format to being able to analyze the data after
 
-```{r data_long}
+```{r data_long, message = FALSE, warning=FALSE}
 datalong_EmlenInd<-pivot_longer( #makes it a frequency to rep after
   Emlen_IndData,
   cols=c("7.5","22.5","37.5","52.5","67.5","82.5","97.5","112.5",
@@ -127,14 +129,14 @@ datalong_EmlenInd<-pivot_longer( #makes it a frequency to rep after
 
 We can make proportions out of the count data to plot it later
 
-```{r count_prop}
+```{r count_prop, message = FALSE, warning=FALSE}
 datalong_EmlenInd$sector<- as.numeric(datalong_EmlenInd$sector)
 datalong_EmlenInd$count_prop<-datalong_EmlenInd$count/datalong_EmlenInd$TotalScratches
 ```
 
 Lets save the all the numbers in one variable to make a new table with the
 
-```{r uniqueIdent}
+```{r uniqueIdent, message = FALSE, warning=FALSE}
 uniqueValues_ID<-unique(datalong_EmlenInd$Identificator)
 ```
 
@@ -293,7 +295,7 @@ And now
 results_df <- combined_df %>%
   group_by(Identificator) %>%
   slice(which.max(rho)) #Keep the values that are associated with the highest rho val
-results_df <- rename(results_df, Distribution = Table) #Change the column name
+results_df <- dplyr::rename(results_df, Distribution = Table) #Change the column name
 results_df$Distribution[results_df$Distribution=="1"]<-"Unimodal"
 results_df$Distribution[results_df$Distribution=="2"]<-"Axial"
 length(results_df$Distribution)
@@ -347,7 +349,9 @@ ggplot(aes(x = sector, y = count), data = datalong_EmlenInd)+
 to see how many times a ring occours in the dataframe (this is because we need to have the same size if we want to do a paired test)
 
 ```{r occurrences}
-occurrences <- mergedEmlen %>% count(Ring) 
+occurrences <- count(mergedEmlen$Ring) 
+occurrences <- dplyr::rename(occurrences, Ring = x)
+occurrences <- dplyr::rename(occurrences, n = freq)
 print(occurrences)
 ```
 
@@ -409,7 +413,7 @@ arrows.circular(mean.circular(Emlen_treatment$Mean), y=r_tre, length=0.1)
 
 To calculate the mean for each species we can do the same as we did before for each individual but with other method. Here we did it also for unimodal and axial distribution
 
-```{r Results_treat}
+```{r Results_treat, message = FALSE, warning=FALSE}
 #| warning: false
 #| output: false
 #| include: false
@@ -420,13 +424,13 @@ EmlenData_sp_Mean<- dplyr::select(mergedEmlen, c("Identificator",
                                                  "Week"))
 #Unimodal spp
 Results_treat_all_unimodal <- EmlenData_sp_Mean %>%
-  group_by(Treatment, Species) %>%
-  summarize(
+  dplyr::group_by(Treatment, Species) %>%
+  dplyr::summarize(
     N=length(Mean),
-    Lower_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95,
+    Lower_CI = if (dplyr::n() > 1) confidence_interval(Mean, conf.level = 0.95,
                                                 axial = FALSE)$conf.interval[1] 
     else NA,
-    Upper_CI = if (n() > 1) confidence_interval(Mean, conf.level = 0.95,
+    Upper_CI = if (dplyr::n() > 1) confidence_interval(Mean, conf.level = 0.95,
                                                 axial = FALSE)$conf.interval[2]
     else NA,
     test_statistic = rayleigh_test(deg2rad(Mean))$statistic,
@@ -437,13 +441,13 @@ Results_treat_all_unimodal <- EmlenData_sp_Mean %>%
 
 #Axial per spp
 Results_treat_all_axial <- EmlenData_sp_Mean %>%
-  group_by(Treatment, Species) %>%
-  summarize(
+  dplyr::group_by(Treatment, Species) %>%
+  dplyr::summarize(
     N=length(Mean),
-    Lower_CI = if (n() > 1) ((confidence_interval((Mean*2), conf.level = 0.95,
+    Lower_CI = if (dplyr::n() > 1) ((confidence_interval((Mean*2), conf.level = 0.95,
                                                 axial = FALSE)$conf.interval[1])/2)+180 
     else NA,
-    Upper_CI = if (n() > 1) ((confidence_interval((Mean*2), conf.level = 0.95,
+    Upper_CI = if (dplyr::n() > 1) ((confidence_interval((Mean*2), conf.level = 0.95,
                                                 axial = FALSE)$conf.interval[2])/2)+180
     else NA,
     test_statistic = rayleigh_test(deg2rad(Mean*2))$statistic,
@@ -476,7 +480,7 @@ combined_df_all <- bind_rows(Results_treat_all_unimodal, Results_treat_all_axial
 Results_treat_all <- combined_df_all %>%
   group_by(Species, Treatment) %>%
   slice(which.max(rho_val)) #Keep the values that are associated with the highest rho val
-Results_treat_all <- rename(Results_treat_all, Distribution = Table) #Change the column name
+Results_treat_all <- dplyr::rename(Results_treat_all, Distribution = Table) #Change the column name
 Results_treat_all$Distribution[Results_treat_all$Distribution=="1"]<-"Unimodal"
 Results_treat_all$Distribution[Results_treat_all$Distribution=="2"]<-"Axial"
 length(Results_treat_all$Distribution)
@@ -495,7 +499,7 @@ Results_treat <- subset(Results_treat,
 #Keep only those species with higher N than 12
 Results_treat <- subset(Results_treat, N>10)
 Results_treat <- Results_treat %>% 
-       rename("Mean" = "Mean_avg")
+       dplyr::rename("Mean" = "Mean_avg")
 ```
 
 To plot each species per treatment with the mean value for the species and the confidence intervals for each species
