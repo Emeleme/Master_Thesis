@@ -144,7 +144,7 @@ uniqueValues_ID<-unique(datalong_EmlenInd$Identificator)
 
 This is a really important piece of code because I'm going to store the statistics results for each individual experiment of unimodal
 
-```{r Results_unimodal}
+```{r Results_unimodal, message = FALSE, warning=FALSE}
 #| warning: false
 results_df_unimodal <- data.frame(Identificator = uniqueValues_ID,   #create an empty dataframe to store results
                          test_statistic = numeric(length(uniqueValues_ID)),
@@ -251,47 +251,17 @@ for (i in uniqueValues_ID) {
   results_df_axial$Upper_CI[row_index] <- upper_CI
 }
 
-# for (i in uniqueValues_ID) {
-#   subset_data <- subset(datalong_EmlenInd, Identificator == i) #subsets data for each identificator/each entry in the database
-#   IndData <- as.data.frame(as.numeric(unlist(subset_data)))
-#   IndData <- na.omit(IndData)
-#   longdata <- as.numeric(rep(subset_data$sector, times = subset_data$count))#repeats the degrees the times we counted already
-#   longdata <- longdata*2 #Double the angles to test for axial distribution
-#   conf_interval <- confidence_interval(longdata, conf.level = 0.95, axial = FALSE)
-#   longdata <- deg2rad(longdata)  # Convert to radians
-#   rayleigh_test <- rayleigh.test(longdata)#performs rayleigh test for each entry in the database
-#   test_statistic <- rayleigh_test$statistic
-#   p_value <- rayleigh_test$p.value
-#   MeanDir<- rad2deg(mean.circular(longdata))/2
-#   rho_val <- rho.circular(longdata)
-#   
-#   
-#   # Convert the mean direction from radians to degrees and correct negative values
-#   MeanDir_deg <- rad2deg(MeanDir)  # Convert to degrees
-#   if (MeanDir_deg < 0) {
-#     MeanDir_deg <- 360 + MeanDir_deg  # Wrap around negative values
-#   }
-#   
-#   # Assign results to the correct rows
-#   row_index <- which(results_df_axial$Identificator == i)
-#   results_df_axial$test_statistic[row_index] <- test_statistic
-#   results_df_axial$p_value[row_index] <- p_value
-#   results_df_axial$Mean[row_index]<- MeanDir_deg
-#   results_df_axial$rho[row_index]<-rho_val
-#   results_df_axial$Lower_CI[row_index]<- conf_interval$conf.interval[1]/2
-#   results_df_axial$Upper_CI[row_index]<- conf_interval$conf.interval[2]/2
-# }
 ```
 
 To combine the tables and to know which individuals have axial or unimodal
 
-```{r combined_df}
+```{r combined_df, message = FALSE, warning = FALSE}
 combined_df <- bind_rows(results_df_unimodal, results_df_axial, .id = "Table")
 ```
 
-And now
+And now we can have the table with the distribution for each bird
 
-```{r results_df}
+```{r results_df, message = FALSE, warning = FALSE}
 results_df <- combined_df %>%
   group_by(Identificator) %>%
   slice(which.max(rho)) #Keep the values that are associated with the highest rho val
@@ -304,7 +274,7 @@ table(results_df$Distribution) #to know how many birds have an axial distributio
 
 Before merging anything, there are some negative values and some values above 360, we can adjust them with the function defined earlier:
 
-```{r results360adj}
+```{r results360adj, message = FALSE, warning = FALSE}
 #| output: false
 #| include: false
 results_df <- as.data.frame(results_df %>% mutate_all(adjust_360))
@@ -312,13 +282,13 @@ results_df <- as.data.frame(results_df %>% mutate_all(adjust_360))
 
 We have the results per identificator. Now we merge both tables to have all the data associated to each one of the rings
 
-```{r mergedEmlen}
+```{r mergedEmlen, message = FALSE, warning = FALSE}
 mergedEmlen<-merge(results_df, Emlen_IndData, by = "Identificator") #merge both dataframes by identificator
 ```
 
 To check unique values and how many data points a ring has to perform a paired test later
 
-```{r uniqueValues_Ring}
+```{r uniqueValues_Ring, message = FALSE, warning = FALSE}
 uniqueValues_Ring<-unique(mergedEmlen$Ring)
 length(uniqueValues_Ring)
 ```
@@ -348,7 +318,7 @@ ggplot(aes(x = sector, y = count), data = datalong_EmlenInd)+
 
 to see how many times a ring occours in the dataframe (this is because we need to have the same size if we want to do a paired test)
 
-```{r occurrences}
+```{r occurrences, message = FALSE, warning = FALSE}
 occurrences <- count(mergedEmlen$Ring) 
 occurrences <- dplyr::rename(occurrences, Ring = x)
 occurrences <- dplyr::rename(occurrences, n = freq)
