@@ -7,14 +7,14 @@ editor: visual
 
 ## 
 
-```{r}
+```{r setup, message = FALSE, warning = FALSE}
 #| output: FALSE 
 setwd("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database")
 ```
 
 For running this script you need the following packages installed in your workspace:
 
-```{r libraries, output=FALSE, include=TRUE, warning=FALSE}
+```{r libraries, message = FALSE, warning = FALSE}
 library(usethis) #To use github
 library(knitr) #to use markdown
 library(circular) #to perform circular statistics
@@ -48,7 +48,7 @@ library(emmeans)
 
 Lets read the table with the Emlen data
 
-```{r database}
+```{r database, message = FALSE, warning = FALSE}
 #| output: false
 #| include: false
 stf_Emlen_IndData<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/Animal_Ecology_2022_2024/Tesis/Database/EmlenData_Autumn2023.txt", h=T, fill=T)
@@ -56,7 +56,7 @@ stf_Emlen_IndData<-read.table("E:/Users/mlmah/OneDrive/Documentos/MLME/Maestria/
 
 Let's change the names of the columns for the middle of the angles the sector has
 
-```{r newSectorNames}
+```{r newSectorNames, message = FALSE, warning = FALSE}
 setnames(stf_Emlen_IndData, old=c("S1","S2","S3","S4","S5","S6","S7","S8","S9",
                               "S10","S11","S12","S13","S14","S15","S16","S17",
                               "S18","S19","S20","S21","S22","S23","S24"), 
@@ -330,56 +330,58 @@ ggplot(aes(x = sector, y = count), data = stf_datalong_EmlenInd)+
 ```
 
 ```{r PDF_ind}
-# pdf("plot_ind_Species.pdf", onefile=TRUE)
-# species_unique <- unique(datalong_EmlenInd$Species)
-# for(i in species_unique) {
-#   dat_count <- subset(datalong_EmlenInd, Species==species_unique[i])
-#   dat_mean <- subset(mergedEmlen, Species==species_unique[i])
-#   p1<-ggplot(aes(x = sector, y = count), data = dat_count)+
-#     coord_polar(theta = "x", direction = 1)+
-#     geom_bar(stat = "identity", fill = "maroon4", width = 14)+
-#     scale_x_continuous("", limits=c(0,360),
-#                       breaks=seq(0,360-0.001,by=45),
-#                       labels=c("N", "NE", "E", "SE", "S", "SW", "W", "NW")) +
-#     geom_segment(data=dat_mean,
-#                mapping=aes(y = 0, x = Mean, xend = Mean, 
-#                            yend = (test_statistic*max(dat_count$count))),
-#                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
-#                color="black", size=0.7)+
-#     geom_vline(data=dat_mean, aes(xintercept = Lower_CI), linetype="dashed")+
-#     geom_vline(data=dat_mean, aes(xintercept = Upper_CI), linetype="dashed")+
-#     ggtitle("Circular Plot: ",i)+
-#     facet_grid(Ring~Treatment)+
-#     theme_minimal()
-#   print(p1)
-# }
-# dev.off()
 
-# pdf("plot_ind_Species.pdf", height=45, width=30, onefile=TRUE)
-# datalong_EmlenInd<-as.data.frame(datalong_EmlenInd)
-# species_unique <- as.vector(unique(datalong_EmlenInd$Species))
-# for(i in 1:length(species_unique)) {
-#   dat_count <- filter(datalong_EmlenInd, Species==species_unique[i])
-#   dat_mean <- filter(mergedEmlen, Species==species_unique[i])
-#   p1<-ggplot(aes(x = sector, y = count), data = dat_count)+
-#     coord_polar(theta = "x", direction = 1)+
-#     geom_bar(stat = "identity", fill = "maroon4", width = 14)+
-#     scale_x_continuous("", limits=c(0,360),
-#                       breaks=seq(0,360-0.001,by=45),
-#                       labels=c("N", "NE", "E", "SE", "S", "SW", "W", "NW")) +
-#     geom_segment(data=dat_mean,
-#                mapping=aes(y = 0, x = Mean, xend = Mean, 
-#                            yend = (test_statistic*max(dat_count$count))),
-#                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
-#                color="black", size=0.7)+
-#     geom_vline(data=dat_mean, aes(xintercept = Lower_CI), linetype="dashed")+
-#     geom_vline(data=dat_mean, aes(xintercept = Upper_CI), linetype="dashed")+
-#     ggtitle("Circular Plot: ",i)+
-#     facet_grid(Ring~Treatment)+
-#     theme_minimal()
-#   print(p1)
-# }
-# dev.off()
+#
+pdf("plot_ind_Species_test11.pdf", onefile=TRUE)
+species_unique <- unique(datalong_EmlenInd$Species)
+for(i in species_unique) {
+  dat_count <- subset(datalong_EmlenInd, Species==species_unique[i])
+  dat_mean <- subset(mergedEmlen, Species==species_unique[i])
+  p1<-ggplot(aes(x = sector, y = count), data = dat_count)+
+    coord_polar(theta = "x", direction = 1)+
+    geom_bar(stat = "identity", fill = "maroon4", width = 14)+
+    scale_x_continuous("", limits=c(0,360),
+                       breaks=seq(0,360-0.001,by=45),
+                       labels=c("N", "NE", "E", "SE", "S", "SW", "W", "NW")) +
+    geom_segment(data=dat_mean,
+              mapping=aes(y = 0, x = Mean, xend = Mean,
+                            yend = (test_statistic*max(dat_count$count))),
+                   arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
+                color="black", size=0.7)+
+    geom_vline(data=dat_mean, aes(xintercept = Lower_CI), linetype="dashed")+
+    geom_vline(data=dat_mean, aes(xintercept = Upper_CI), linetype="dashed")+
+    ggtitle("Circular Plot: ",i)+
+    facet_grid(Treatment~Ring)+
+    theme_minimal()
+ print(p1)
+}
+dev.off()
+
+pdf("plot_ind_Species_test22.pdf", height=45, width=30, onefile=TRUE)
+datalong_EmlenInd<-as.data.frame(datalong_EmlenInd)
+species_unique <- as.vector(unique(datalong_EmlenInd$Species))
+for(i in 1:length(species_unique)) {
+ dat_count <- filter(datalong_EmlenInd, Species==species_unique[i])
+ dat_mean <- filter(mergedEmlen, Species==species_unique[i])
+ p1<-ggplot(aes(x = sector, y = count), data = dat_count)+
+   coord_polar(theta = "x", direction = 1)+
+   geom_bar(stat = "identity", fill = "maroon4", width = 14)+
+   scale_x_continuous("", limits=c(0,360),
+                     breaks=seq(0,360-0.001,by=45),
+                     labels=c("N", "NE", "E", "SE", "S", "SW", "W", "NW")) +
+   geom_segment(data=dat_mean,
+              mapping=aes(y = 0, x = Mean, xend = Mean,
+                          yend = (test_statistic*max(dat_count$count))),
+                 arrow = arrow(type="closed",ends="last",length=unit(2,"mm")),
+              color="black", size=0.7)+
+   geom_vline(data=dat_mean, aes(xintercept = Lower_CI), linetype="dashed")+
+   geom_vline(data=dat_mean, aes(xintercept = Upper_CI), linetype="dashed")+
+   ggtitle("Circular Plot: ",i)+
+   facet_grid(Treatment~Ring)+
+   theme_minimal()
+ print(p1)
+}
+dev.off()
 ```
 
 to see how many times a ring occours in the dataframe (this is because we need to have the same size if we want to do a paired test)
